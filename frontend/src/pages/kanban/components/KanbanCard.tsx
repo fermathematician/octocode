@@ -7,10 +7,6 @@ import styles from "./KanbanCard.module.css";
 interface KanbanCardProps {
   story: Story;
   projectName?: string;
-  canMoveBackward: boolean;
-  canMoveForward: boolean;
-  onMoveBackward: () => void;
-  onMoveForward: () => void;
 }
 
 const PRIORITY_TONES: Record<Story["priority"], BadgeTone> = {
@@ -20,25 +16,14 @@ const PRIORITY_TONES: Record<Story["priority"], BadgeTone> = {
   low: "low",
 };
 
-export function KanbanCard({
-  story,
-  projectName,
-  canMoveBackward,
-  canMoveForward,
-  onMoveBackward,
-  onMoveForward,
-}: KanbanCardProps) {
+export function KanbanCard({ story, projectName }: KanbanCardProps) {
   function handleDragStart(event: DragEvent<HTMLElement>) {
     event.dataTransfer.setData("text/plain", story.id);
     event.dataTransfer.effectAllowed = "move";
   }
 
   return (
-    <article
-      className={styles.card}
-      draggable
-      onDragStart={handleDragStart}
-    >
+    <article className={styles.card} draggable onDragStart={handleDragStart}>
       {projectName ? (
         <span className={styles.project}>{projectName}</span>
       ) : null}
@@ -51,26 +36,6 @@ export function KanbanCard({
         <Badge tone={PRIORITY_TONES[story.priority]}>
           {STORY_PRIORITY_LABELS[story.priority]}
         </Badge>
-      </div>
-      <div className={styles.actions}>
-        <button
-          type="button"
-          className={styles.move}
-          onClick={onMoveBackward}
-          disabled={!canMoveBackward}
-          aria-label={`Move ${story.title} backward`}
-        >
-          ←
-        </button>
-        <button
-          type="button"
-          className={styles.move}
-          onClick={onMoveForward}
-          disabled={!canMoveForward}
-          aria-label={`Move ${story.title} forward`}
-        >
-          →
-        </button>
       </div>
     </article>
   );

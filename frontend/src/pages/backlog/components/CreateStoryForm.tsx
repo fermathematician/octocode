@@ -2,7 +2,10 @@ import { useState, type FormEvent } from "react";
 import { Button } from "../../../components/shared/Button/Button";
 import { Select } from "../../../components/shared/Select/Select";
 import { TextInput } from "../../../components/shared/TextInput/TextInput";
-import { STORY_PRIORITY_LABELS } from "../../../domain/story";
+import {
+  branchNameFromTitle,
+  STORY_PRIORITY_LABELS,
+} from "../../../domain/story";
 import {
   STORY_POINTS,
   STORY_PRIORITIES,
@@ -38,11 +41,30 @@ export function CreateStoryForm({
     defaultProjectId ?? projects[0]?.id ?? "",
   );
   const [title, setTitle] = useState("");
+  const [branch, setBranch] = useState("");
+  const [isBranchEdited, setIsBranchEdited] = useState(false);
   const [storyPoints, setStoryPoints] = useState<string>(String(DEFAULT_POINTS));
   const [priority, setPriority] = useState<StoryPriority>("medium");
   const [errors, setErrors] = useState<CreateStoryFormErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const points = isStoryPoints(storyPoints)
+    ? (Number(storyPoints) as StoryPoints)
+    : DEFAULT_POINTS;
+
+  function handleTitleChange(value: string) {
+    setTitle(value);
+
+    if (!isBranchEdited) {
+      setBranch(value.trim() ? branchNameFromTitle(value) : "");
+    }
+  }
+
+  function handleBranchChange(value: string) {
+    setBranch(value);
+    setIsBranchEdited(true);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -50,8 +72,9 @@ export function CreateStoryForm({
     const validationErrors = validateCreateStory({
       projectId,
       title,
-      storyPoints: isStoryPoints(storyPoints) ? Number(storyPoints) as StoryPoints : DEFAULT_POINTS,
+      storyPoints: points,
       priority,
+      branch,
     });
 
     if (Object.keys(validationErrors).length > 0) {
@@ -67,10 +90,9 @@ export function CreateStoryForm({
       await onSubmit({
         projectId,
         title: title.trim(),
-        storyPoints: isStoryPoints(storyPoints)
-          ? (Number(storyPoints) as StoryPoints)
-          : DEFAULT_POINTS,
+        storyPoints: points,
         priority,
+        branch: branch.trim() || undefined,
       });
     } catch {
       setFormError("Unable to create the story. Please try again.");
@@ -97,9 +119,18 @@ export function CreateStoryForm({
         id="create-story-title"
         label="Story name"
         value={title}
-        onChange={setTitle}
+        onChange={handleTitleChange}
         placeholder="As a user, I want…"
         error={errors.title}
+      />
+
+      <TextInput
+        id="create-story-branch"
+        label="Branch"
+        value={branch}
+        onChange={handleBranchChange}
+        placeholder="feat/my-story"
+        error={errors.branch}
       />
 
       <div className={styles.row}>

@@ -1,75 +1,56 @@
-# React + TypeScript + Vite
+# Octocode — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 19 + Vite + TypeScript single-page app for **Octocode**, a developer work organizer.
 
-Currently, two official plugins are available:
+> The full project reference (product spec, domain model, conventions, roadmap) lives in
+> [`../README.md`](../README.md). Read that first. This file only covers the frontend workspace.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Run
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm install
+npm run dev        # http://localhost:5173
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Vite dev server with HMR |
+| `npm run build` | `tsc -b && vite build` (type-check + production build) |
+| `npm run typecheck` | `tsc -b` |
+| `npm run lint` | `eslint .` |
+| `npm run preview` | Serve the built `dist/` |
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+There is no test runner configured. The product's real test is visual; use `typecheck`, `lint`, and
+`build` as static checks before viewing the app.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Data
 
+The app runs entirely on **local in-memory data** — no backend is required:
+
+- Seed data: `src/data/seed.ts`
+- Store + async API boundary: `src/api/*`
+
+Changes are lost on a full page reload. Swapping `src/api/*` bodies for HTTP calls is the intended
+path to the backend; see the root README §7.
+
+## Structure (summary)
+
+```text
+src/
+├── domain/    # framework-free types + pure logic
+├── data/      # local seed
+├── api/       # async data boundary (the only place that touches the store)
+├── shared/    # cross-cutting helpers (date)
+├── components/
+│   ├── layout/ # AppShell, ProjectSidebar, navigation
+│   └── shared/ # generic primitives: Button, Modal, Select, TextInput, Badge, …
+├── pages/     # today, calendar, kanban, graph, project (backlog + progress)
+└── styles/    # global.css (reset + design tokens only)
 ```
+
+## Conventions
+
+- No new dependencies without justification (no router, state, chart, form, or DnD libraries).
+- CSS Modules colocated with components; global CSS is only reset + tokens.
+- Visual components never call `api/*`; pages/hooks own requests and expose `loading`/`error`.
+- Follow `.pi/skills/frontend/{structure,components,forms}`.

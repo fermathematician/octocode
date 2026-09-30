@@ -4,6 +4,7 @@ import type {
   StoryPriority,
   StoryStatus,
 } from "../domain/types";
+import { branchNameFromTitle } from "../domain/story";
 import { createId, db, delay } from "./db";
 
 export interface CreateStoryInput {
@@ -11,24 +12,11 @@ export interface CreateStoryInput {
   title: string;
   storyPoints: StoryPoints;
   priority: StoryPriority;
+  branch?: string;
 }
 
-function slugifyTitle(title: string): string {
-  return title
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/[\s_]+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 40)
-    .replace(/^-+|-+$/g, "");
-}
-
-function buildBranchName(title: string): string {
-  const slug = slugifyTitle(title) || "story";
-  const base = `feat/${slug}`;
+function buildUniqueBranchName(title: string): string {
+  const base = branchNameFromTitle(title);
 
   let candidate = base;
   let counter = 2;
@@ -67,7 +55,9 @@ export async function createStory(input: CreateStoryInput): Promise<Story> {
     storyPoints: input.storyPoints,
     priority: input.priority,
     status: "backlog",
-    branch: buildBranchName(input.title),
+    branch: input.branch?.trim()
+      ? input.branch.trim()
+      : buildUniqueBranchName(input.title),
     commits: [],
     createdAt: new Date().toISOString(),
     completedAt: null,

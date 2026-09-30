@@ -30,11 +30,13 @@ export interface CreateStoryFormValues {
   title: string;
   storyPoints: StoryPoints;
   priority: StoryPriority;
+  branch: string;
 }
 
 export interface CreateStoryFormErrors {
   projectId?: string;
   title?: string;
+  branch?: string;
 }
 
 export function validateCreateStory(
@@ -48,6 +50,13 @@ export function validateCreateStory(
 
   if (!values.title.trim()) {
     errors.title = "Story name is required.";
+  }
+
+  if (values.branch.trim()) {
+    const branchError = validateBranchName(values.branch);
+    if (branchError) {
+      errors.branch = branchError;
+    }
   }
 
   return errors;

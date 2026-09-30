@@ -42,30 +42,3 @@
   flex-wrap: wrap;
   gap: var(--space-1);
 }
-
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-1);
-}
-
-.move {
-  border: 1px solid var(--color-border);
-  background-color: var(--color-surface);
-  border-radius: var(--radius-sm);
-  width: 26px;
-  height: 26px;
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-  cursor: pointer;
-}
-
-.move:not(:disabled):hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
-.move:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}

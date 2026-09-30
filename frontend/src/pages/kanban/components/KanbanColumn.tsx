@@ -1,10 +1,6 @@
 import { useState, type DragEvent } from "react";
 import { STORY_STATUS_LABELS } from "../../../domain/story";
-import {
-  STORY_STATUSES,
-  type Story,
-  type StoryStatus,
-} from "../../../domain/types";
+import type { Story, StoryStatus } from "../../../domain/types";
 import { KanbanCard } from "./KanbanCard";
 import styles from "./KanbanColumn.module.css";
 
@@ -22,9 +18,6 @@ export function KanbanColumn({
   onMove,
 }: KanbanColumnProps) {
   const [isDragOver, setIsDragOver] = useState(false);
-  const statusIndex = STORY_STATUSES.indexOf(status);
-  const previousStatus = STORY_STATUSES[statusIndex - 1];
-  const nextStatus = STORY_STATUSES[statusIndex + 1];
 
   function handleDragOver(event: DragEvent<HTMLElement>) {
     event.preventDefault();
@@ -65,18 +58,6 @@ export function KanbanColumn({
             key={story.id}
             story={story}
             projectName={projectNames[story.projectId]}
-            canMoveBackward={previousStatus !== undefined}
-            canMoveForward={nextStatus !== undefined}
-            onMoveBackward={() => {
-              if (previousStatus) {
-                onMove(story.id, previousStatus);
-              }
-            }}
-            onMoveForward={() => {
-              if (nextStatus) {
-                onMove(story.id, nextStatus);
-              }
-            }}
           />
         ))}
       </div>
