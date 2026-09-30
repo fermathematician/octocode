@@ -47,6 +47,8 @@ interface GithubApiCommit {
 
 const API_BASE = "https://api.github.com";
 
+type AuthScheme = "Bearer" | "token";
+
 export class FetchGithubClient implements GithubClient {
   constructor(private readonly options: FetchGithubClientOptions) {}
 
@@ -118,17 +120,46 @@ export class FetchGithubClient implements GithubClient {
     };
   }
 
-  private async request<T>(path: string, accessToken: string): Promise<T> {
-    const response = await fetch(`${API_BASE}${path}`, {
+  private send(
+    path: string,
+    accessToken: string,
+    scheme: AuthScheme,
+  ): Promise<Response> {
+    return fetch(`${API_BASE}${path}`, {
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `${scheme} ${accessToken}`,
         Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "octocode",
       },
     });
+  }
 
+  /**
+   * GitHub accepts `Bearer` for OAuth/app tokens but classic personal access
+   * tokens (`ghp_…`) have historically required the `token` scheme. Try `Bearer`
+   * first and fall back to `token` on a 401 so both token types work.
+   */
+  private async request<T>(path: string, accessToken: string): Promise<T> {
+    const bearerResponse = await this.send(path, accessToken, "Bearer");
+
+    if (bearerResponse.status === 401) {
+      const tokenResponse = await this.send(path, accessToken, "token");
+      return this.parse<T>(tokenResponse);
+    }
+
+    return this.parse<T>(bearerResponse);
+  }
+
+  private async parse<T>(response: Response): Promise<T> {
     if (!response.ok) {
+      if (response.status === 401) {
+        throw new AppError(
+          "GitHub rejected the access token. Check that it is valid, not expired, and (for classic tokens) has the `repo` and `read:user` scopes.",
+          401,
+        );
+      }
+
       throw new AppError(
         `GitHub request failed with status ${response.status}.`,
         502,

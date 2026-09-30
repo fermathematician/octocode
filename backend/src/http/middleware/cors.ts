@@ -1,10 +1,10 @@
 import type { RequestHandler } from "express";
-import { env } from "../../config/env.js";
+import { isAllowedOrigin } from "../origins.js";
 
 export const cors: RequestHandler = (request, response, next) => {
   const origin = request.headers.origin;
 
-  if (origin && origin === env.corsOrigin) {
+  if (origin && isAllowedOrigin(origin)) {
     response.setHeader("Access-Control-Allow-Origin", origin);
     response.setHeader("Access-Control-Allow-Credentials", "true");
     response.setHeader("Vary", "Origin");
