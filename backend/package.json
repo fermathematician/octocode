@@ -8,10 +8,12 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
     "lint": "eslint .",
+    "test": "NODE_ENV=test node --import tsx --test 'tests/**/*.test.ts'",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio"
   },
   "keywords": [],

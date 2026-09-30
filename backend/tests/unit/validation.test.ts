@@ -1,0 +1,160 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { StoryPriority } from "../../src/generated/prisma/client.js";
+import { ValidationError } from "../../src/shared/validation.js";
+import { parseCreateProjectBody, parseUpdateProjectBody } from "../../src/modules/projects/validation/project.schema.js";
+import {
+  parseCreateSprintBody,
+  parseUpdateSprintBody,
+} from "../../src/modules/sprints/validation/sprint.schema.js";
+import {
+  parseCreateStoryBody,
+  parseMoveStorySprintBody,
+  parseUpdateStoryBody,
+} from "../../src/modules/stories/validation/story.schema.js";
+import {
+  parseCreateCalendarEventBody,
+  parseUpdateCalendarEventBody,
+} from "../../src/modules/calendar/validation/calendar.schema.js";
+
+describe("story validation", () => {
+  it("maps lowercase priority to the enum and trims the title", () => {
+    const input = parseCreateStoryBody({
+      projectId: "p1",
+      title: "  Add login ",
+      storyPoints: 5,
+      priority: "high",
+    });
+    assert.equal(input.title, "Add login");
+    assert.equal(input.storyPoints, 5);
+    assert.equal(input.priority, StoryPriority.HIGH);
+    assert.equal(input.branch, undefined);
+  });
+
+  it("rejects a non-Fibonacci point value", () => {
+    assert.throws(
+      () =>
+        parseCreateStoryBody({
+          projectId: "p1",
+          title: "X",
+          storyPoints: 4,
+          priority: "low",
+        }),
+      ValidationError,
+    );
+  });
+
+  it("rejects an unknown priority", () => {
+    assert.throws(
+      () =>
+        parseCreateStoryBody({
+          projectId: "p1",
+          title: "X",
+          storyPoints: 3,
+          priority: "urgent",
+        }),
+      ValidationError,
+    );
+  });
+
+  it("requires at least one update field", () => {
+    assert.throws(() => parseUpdateStoryBody({}), ValidationError);
+  });
+
+  it("accepts a partial update", () => {
+    assert.deepEqual(parseUpdateStoryBody({ storyPoints: 8 }), {
+      storyPoints: 8,
+    });
+  });
+
+  it("accepts null to clear the sprint and rejects a missing key", () => {
+    assert.deepEqual(parseMoveStorySprintBody({ sprintId: null }), {
+      sprintId: null,
+    });
+    assert.deepEqual(parseMoveStorySprintBody({ sprintId: "s1" }), {
+      sprintId: "s1",
+    });
+    assert.throws(() => parseMoveStorySprintBody({}), ValidationError);
+  });
+});
+
+describe("project validation", () => {
+  it("defaults the color", () => {
+    assert.equal(parseCreateProjectBody({ name: "P" }).color, "#4f46e5");
+  });
+
+  it("rejects an invalid color", () => {
+    assert.throws(
+      () => parseCreateProjectBody({ name: "P", color: "red" }),
+      ValidationError,
+    );
+  });
+
+  it("requires at least one update field", () => {
+    assert.throws(() => parseUpdateProjectBody({}), ValidationError);
+  });
+});
+
+describe("sprint validation", () => {
+  it("parses a valid start date", () => {
+    assert.equal(
+      parseCreateSprintBody({
+        projectId: "p1",
+        name: "Sprint 1",
+        startDate: "2030-01-01",
+      }).startDate,
+      "2030-01-01",
+    );
+  });
+
+  it("rejects a malformed date", () => {
+    assert.throws(
+      () =>
+        parseCreateSprintBody({
+          projectId: "p1",
+          name: "Sprint 1",
+          startDate: "01/01/2030",
+        }),
+      ValidationError,
+    );
+  });
+
+  it("requires at least one update field", () => {
+    assert.throws(() => parseUpdateSprintBody({}), ValidationError);
+  });
+});
+
+describe("calendar validation", () => {
+  it("maps the type and validates the time", () => {
+    const input = parseCreateCalendarEventBody({
+      type: "reminder",
+      title: "Pay rent",
+      date: "2030-01-01",
+      startTime: "09:00",
+    });
+    assert.equal(input.type, "REMINDER");
+  });
+
+  it("rejects an invalid time", () => {
+    assert.throws(
+      () =>
+        parseCreateCalendarEventBody({
+          type: "task",
+          title: "X",
+          date: "2030-01-01",
+          startTime: "9am",
+        }),
+      ValidationError,
+    );
+  });
+
+  it("accepts notes in an update", () => {
+    assert.deepEqual(parseUpdateCalendarEventBody({ notes: "" }), {
+      notes: "",
+    });
+  });
+
+  it("requires at least one update field", () => {
+    assert.throws(() => parseUpdateCalendarEventBody({}), ValidationError);
+  });
+});

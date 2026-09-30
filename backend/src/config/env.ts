@@ -75,6 +75,7 @@ function readEncryptionKey(): string {
 
 export const env = {
   isProduction: readOptional("NODE_ENV", "development") === "production",
+  isTest: readOptional("NODE_ENV", "development") === "test",
   port: readNumber("PORT", 3333),
   frontendUrl: readUrl("FRONTEND_URL", "http://localhost:5173"),
   corsOrigin: readUrl("CORS_ORIGIN", "http://localhost:5173"),

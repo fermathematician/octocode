@@ -446,22 +446,28 @@ styles live in colocated `*.module.css`; no inline styles except dynamic values.
 npm install
 npm run prisma:generate   # generate the Prisma client into src/generated/prisma
 npm run prisma:migrate    # create/apply migrations (needs DATABASE_URL)
+npm run prisma:seed       # seed demo data (SEED_USER_LOGIN, default "demo")
 npm run dev               # tsx watch src/server.ts  (default port 3333)
 npm run build             # tsc -> dist/
 npm run start             # node dist/server.js
-npm run typecheck         # tsc --noEmit
+npm run typecheck         # tsc --noEmit + tests (tsconfig.test.json)
 npm run lint              # eslint .
+npm test                  # node:test (unit + middleware + http) — no DB required
 npm run prisma:studio     # inspect data
 ```
 
 First-time setup:
 
-1. Create a PostgreSQL database and set `DATABASE_URL` in `backend/.env` (see `.env.example`).
+1. Start Postgres — e.g. `docker compose up -d db` from the repo root (or point `DATABASE_URL` at
+   an existing database in `backend/.env`; see `.env.example`).
 2. `npm install`
 3. `npm run prisma:migrate` (creates tables)
 4. `npm run prisma:generate`
 5. Set GitHub OAuth credentials (see §6.7).
-6. `npm run dev`
+6. `npm run prisma:seed` (optional): creates a demo project for `SEED_USER_LOGIN` (default `demo`).
+   If that value matches your GitHub username, the data links to your account on first sign-in (the
+   OAuth callback matches an existing user by login).
+7. `npm run dev`
 
 ### 6.3 Database schema (`backend/prisma/schema.prisma`)
 
@@ -739,7 +745,7 @@ cd frontend && npm run typecheck && npm run lint && npm run build
 Backend:
 
 ```bash
-cd backend && npm run prisma:generate && npm run typecheck && npm run lint && npm run build
+cd backend && npm run prisma:generate && npm run typecheck && npm run lint && npm test && npm run build
 # smoke test:
 node dist/server.js
 curl localhost:3333/health        # -> {"status":"ok"}
@@ -812,10 +818,12 @@ The detailed gap analysis and phased plan live in **§14**. What remains:
 - **Backend Phase 1**: centralized Prisma error mapping (409/404), cursor pagination on all list
   endpoints, and full update/delete coverage — project update/delete, sprint update/delete, story
   update and move-to-sprint, calendar-event update. The frontend API unwraps the paginated envelope.
-- **Backend Phase 2 (this update)**: validated environment config, graceful shutdown, `/ready` DB
-  readiness probe, structured JSON request logs with request IDs, in-memory rate limiting (global +
-  strict `/auth`), an `Origin` check on state-changing requests, periodic session cleanup, and
-  `POST /auth/logout-all`. Gap analysis and remaining phases documented in §14.
+- **Backend Phase 2**: validated environment config, graceful shutdown, `/ready` DB readiness probe,
+  structured JSON request logs with request IDs, in-memory rate limiting (global + strict `/auth`),
+  an `Origin` check on state-changing requests, periodic session cleanup, and `POST /auth/logout-all`.
+- **Backend Phase 3 (this update)**: seed script + `docker-compose.yml` for local Postgres, and a
+  dependency-free test suite (Node's `node:test` + `tsx`) covering services, middleware and HTTP
+  behavior, plus a CI workflow. Gap analysis and remaining phases documented in §14.
 
 ---
 
@@ -868,7 +876,8 @@ These are deliberately documented so future work does not rediscover them.
 ### 13.2 Data / Prisma
 
 - **Initial migration is committed** at `backend/prisma/migrations/…_init`. Apply it with
-  `npm run prisma:migrate`. There is **no seed script**, so a fresh database is empty.
+  `npm run prisma:migrate`. A seed script (`prisma/seed.ts`, `npm run prisma:seed`) creates a demo
+  project for `SEED_USER_LOGIN` (default `demo`); it skips if that project already exists.
 - **Pagination is cursor-based** (`?limit=&cursor=`) and returns `{ items, nextCursor }`. The
   frontend still fetches only the first page (default limit 100); a pagination UI is future work.
 - **Prisma errors are mapped centrally**: `P2002` → 409, `P2025` → 404, `P2003` → 409
@@ -901,7 +910,11 @@ These are deliberately documented so future work does not rediscover them.
 
 ### 13.5 Process / tooling
 
-- **No test suite** for either app. Verification is typecheck + lint + build + manual smoke tests.
+- **Backend tests** use Node's built-in runner (`node:test`) with `tsx` — no extra dependencies
+  (`npm test`): unit tests for services with in-memory repository fakes, plus middleware and HTTP
+  behavior tests. They do not need a database. **The frontend still has no tests.**
+- **CI** (`.github/workflows/ci.yml`) runs typecheck + lint + build for both apps and `npm test` for
+  the backend on push/PR.
 - **The safety extension blocks commands containing `git`** (even in URLs). See §8.3.
 - **`src/generated/prisma`** is generated and gitignored; run `npm run prisma:generate` after
   installing or changing the schema. The backend build compiles it into `dist`.
@@ -915,7 +928,7 @@ These are deliberately documented so future work does not rediscover them.
 ## 14. Backend completion plan (gap analysis & phases)
 
 This section records what is required to call the backend "finished", the analysis behind it, and the
-phased plan. **Phases 1 and 2 are implemented** (see §11); Phases 3–5 are outstanding.
+phased plan. **Phases 1–3 are implemented** (see §11); Phases 4–5 are outstanding.
 
 ### 14.1 Definition of done
 
@@ -965,13 +978,13 @@ phased plan. **Phases 1 and 2 are implemented** (see §11); Phases 3–5 are out
 
 | Gap | Status |
 | --- | --- |
-| Tests | ❌ Phase 3 (needs `vitest`/`supertest`, requires approval) |
-| Seed script | ❌ Phase 3 |
+| Tests | ✅ Phase 3 (`node:test` + `tsx`; no new deps) |
+| Seed script | ✅ Phase 3 |
 | Env validation | ✅ Phase 2 |
 | Graceful shutdown | ✅ Phase 2 |
 | Structured logging / request IDs | ✅ Phase 2 |
 | OpenAPI spec | ❌ Phase 5 |
-| Docker Compose / CI | ❌ Phase 3 |
+| Docker Compose / CI | ✅ Phase 3 |
 
 #### E. Security
 
@@ -1003,12 +1016,13 @@ phased plan. **Phases 1 and 2 are implemented** (see §11); Phases 3–5 are out
 8. Validated environment config; graceful shutdown (SIGTERM/SIGINT + Prisma disconnect); `/ready` DB
    readiness probe; structured JSON request logs with request IDs.
 
-**Phase 3 — Reproducibility & tests — ❌ not started**
+**Phase 3 — Reproducibility & tests — ✅ done**
 
-9. `prisma/seed.ts` + `prisma db seed`; `docker-compose.yml` for Postgres.
-10. Test suite: service unit tests with in-memory repositories; route integration tests with a test
-    DB. Requires new dev dependencies (`vitest`, `supertest`) — needs approval.
-11. CI running typecheck + lint + build + tests.
+9. `prisma/seed.ts` + `prisma db seed` (`npm run prisma:seed`); `docker-compose.yml` for Postgres.
+10. Test suite using Node's built-in runner + `tsx` (**no new dependencies**): service unit tests
+    with in-memory repository fakes, plus middleware and HTTP behavior tests. (Chose `node:test`
+    over `vitest`/`supertest` to avoid adding dependencies.)
+11. CI (`.github/workflows/ci.yml`) running typecheck + lint + build for both apps and `npm test`.
 
 **Phase 4 — Integrations — ❌ not started**
 
