@@ -1,0 +1,9 @@
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.filters > * {
+  min-width: 180px;
+}

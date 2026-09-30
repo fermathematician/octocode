@@ -1,0 +1,77 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background-color: var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.weekday {
+  background-color: var(--color-surface-muted);
+  padding: var(--space-2);
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.day {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-height: 74px;
+  border: none;
+  background-color: var(--color-surface);
+  padding: var(--space-2);
+  font-family: inherit;
+  font-size: 0.8rem;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.day:hover {
+  background-color: #f8f9ff;
+}
+
+.dayOutside {
+  color: var(--color-text-muted);
+  background-color: #fafbfd;
+}
+
+.daySelected {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.dayNumber {
+  font-weight: 600;
+}
+
+.dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.meeting {
+  background-color: var(--color-primary);
+}
+
+.task {
+  background-color: var(--color-accent);
+}
+
+.reminder {
+  background-color: var(--color-high);
+}

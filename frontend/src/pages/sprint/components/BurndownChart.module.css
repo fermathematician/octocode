@@ -1,0 +1,77 @@
+.wrapper {
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
+}
+
+.chart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.grid {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.idealLine {
+  fill: none;
+  stroke: var(--color-text-muted);
+  stroke-width: 2;
+  stroke-dasharray: 6 6;
+}
+
+.remainingLine {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 2.5;
+}
+
+.dot {
+  fill: var(--color-primary);
+}
+
+.axisLabel {
+  fill: var(--color-text-muted);
+  font-size: 11px;
+  text-anchor: middle;
+}
+
+.axisLabelY {
+  fill: var(--color-text-muted);
+  font-size: 11px;
+  text-anchor: end;
+}
+
+.legend {
+  list-style: none;
+  display: flex;
+  gap: var(--space-4);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.swatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.swatchRemaining {
+  background-color: var(--color-primary);
+}
+
+.swatchIdeal {
+  background-color: var(--color-text-muted);
+}
