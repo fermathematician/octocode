@@ -1,0 +1,5 @@
+.venv
+.pi/audit
+node_modules
+.cache/
+evals/results/
