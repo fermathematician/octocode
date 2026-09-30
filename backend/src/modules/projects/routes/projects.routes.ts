@@ -1,12 +1,14 @@
 import { Router, type RequestHandler } from "express";
 import { validate } from "../../../http/middleware/validate.js";
 import type { CreateProjectController } from "../controllers/CreateProjectController.js";
+import type { CreateProjectFromRepositoryController } from "../controllers/CreateProjectFromRepositoryController.js";
 import type { DeleteProjectController } from "../controllers/DeleteProjectController.js";
 import type { GetProjectController } from "../controllers/GetProjectController.js";
 import type { ListProjectsController } from "../controllers/ListProjectsController.js";
 import type { UpdateProjectController } from "../controllers/UpdateProjectController.js";
 import {
   parseCreateProjectBody,
+  parseCreateProjectFromRepositoryBody,
   parseListProjectsQuery,
   parseProjectParams,
   parseUpdateProjectBody,
@@ -16,6 +18,7 @@ export interface ProjectControllers {
   list: ListProjectsController;
   get: GetProjectController;
   create: CreateProjectController;
+  createFromRepository: CreateProjectFromRepositoryController;
   update: UpdateProjectController;
   remove: DeleteProjectController;
 }
@@ -36,6 +39,11 @@ export function createProjectsRouter(
     "/",
     validate({ body: parseCreateProjectBody }),
     controllers.create.handle,
+  );
+  router.post(
+    "/from-repository",
+    validate({ body: parseCreateProjectFromRepositoryBody }),
+    controllers.createFromRepository.handle,
   );
   router.get(
     "/:projectId",

@@ -1,11 +1,13 @@
 import { requireAuth } from "../http/middleware/ensureAuthenticated.js";
 import { CreateProjectController } from "../modules/projects/controllers/CreateProjectController.js";
+import { CreateProjectFromRepositoryController } from "../modules/projects/controllers/CreateProjectFromRepositoryController.js";
 import { DeleteProjectController } from "../modules/projects/controllers/DeleteProjectController.js";
 import { GetProjectController } from "../modules/projects/controllers/GetProjectController.js";
 import { ListProjectsController } from "../modules/projects/controllers/ListProjectsController.js";
 import { UpdateProjectController } from "../modules/projects/controllers/UpdateProjectController.js";
 import { createProjectsRouter } from "../modules/projects/routes/projects.routes.js";
 import { CreateProjectService } from "../modules/projects/services/CreateProjectService.js";
+import { CreateProjectFromRepositoryService } from "../modules/projects/services/CreateProjectFromRepositoryService.js";
 import { DeleteProjectService } from "../modules/projects/services/DeleteProjectService.js";
 import { GetProjectService } from "../modules/projects/services/GetProjectService.js";
 import { ListProjectsService } from "../modules/projects/services/ListProjectsService.js";
@@ -24,6 +26,13 @@ const create = new CreateProjectController(
   new CreateProjectService(shared.projectRepository),
 );
 
+const createFromRepository = new CreateProjectFromRepositoryController(
+  new CreateProjectFromRepositoryService(
+    shared.projectRepository,
+    shared.githubRepositoryRepository,
+  ),
+);
+
 const update = new UpdateProjectController(
   new UpdateProjectService(shared.projectRepository),
 );
@@ -33,6 +42,6 @@ const remove = new DeleteProjectController(
 );
 
 export const projectsRouter = createProjectsRouter(
-  { list, get, create, update, remove },
+  { list, get, create, createFromRepository, update, remove },
   requireAuth,
 );

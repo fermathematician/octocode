@@ -66,6 +66,44 @@ export function parseUpdateProjectBody(value: unknown): UpdateProjectInput {
   return input;
 }
 
+export interface CreateProjectFromRepositoryInput {
+  name: string;
+  color: string;
+  repoId: string;
+  owner: string;
+  repositoryName: string;
+  defaultBranch: string;
+  isPrivate: boolean;
+}
+
+export function parseCreateProjectFromRepositoryBody(
+  value: unknown,
+): CreateProjectFromRepositoryInput {
+  const record = asObject(value);
+  const color = optionalString(record, "color") ?? "#4f46e5";
+
+  if (!COLOR_PATTERN.test(color)) {
+    throw new ValidationError("color must be a hex color like #4f46e5.");
+  }
+
+  const repositoryName = requireString(record, "repositoryName", {
+    maxLength: 120,
+  }).trim();
+  const providedName = optionalString(record, "name");
+  const name =
+    providedName && providedName.trim() ? providedName.trim() : repositoryName;
+
+  return {
+    name,
+    color,
+    repoId: requireString(record, "repoId"),
+    owner: requireString(record, "owner"),
+    repositoryName,
+    defaultBranch: optionalString(record, "defaultBranch") ?? "main",
+    isPrivate: record.isPrivate === true,
+  };
+}
+
 export function parseProjectParams(value: unknown): { projectId: string } {
   return { projectId: requireString(asObject(value), "projectId") };
 }

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { StoryPriority } from "../../src/generated/prisma/client.js";
 import { ValidationError } from "../../src/shared/validation.js";
-import { parseCreateProjectBody, parseUpdateProjectBody } from "../../src/modules/projects/validation/project.schema.js";
+import { parseCreateProjectBody, parseUpdateProjectBody, parseCreateProjectFromRepositoryBody } from "../../src/modules/projects/validation/project.schema.js";
 import {
   parseCreateSprintBody,
   parseUpdateSprintBody,
@@ -93,6 +93,42 @@ describe("project validation", () => {
 
   it("requires at least one update field", () => {
     assert.throws(() => parseUpdateProjectBody({}), ValidationError);
+  });
+
+  it("defaults the project name to the repository name", () => {
+    const input = parseCreateProjectFromRepositoryBody({
+      repoId: "1",
+      owner: "octocode-labs",
+      repositoryName: "my-repo",
+      defaultBranch: "main",
+      isPrivate: true,
+    });
+
+    assert.equal(input.name, "my-repo");
+    assert.equal(input.color, "#4f46e5");
+    assert.equal(input.isPrivate, true);
+  });
+
+  it("honors an explicit project name and rejects a bad color", () => {
+    const input = parseCreateProjectFromRepositoryBody({
+      name: "Custom",
+      repoId: "1",
+      owner: "o",
+      repositoryName: "my-repo",
+    });
+
+    assert.equal(input.name, "Custom");
+    assert.equal(input.defaultBranch, "main");
+    assert.throws(
+      () =>
+        parseCreateProjectFromRepositoryBody({
+          repoId: "1",
+          owner: "o",
+          repositoryName: "r",
+          color: "red",
+        }),
+      ValidationError,
+    );
   });
 });
 

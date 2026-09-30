@@ -385,7 +385,8 @@ frontend/src/
 - **Kanban** (`pages/kanban`): 5 status columns, drag-and-drop, project filter.
 - **Graph** (`pages/graph`): burndown chart + sprint header, project filter.
 - **Project** (`pages/project`): tabs `Backlog` (story CRUD/branch/commits) and `Progress`
-  (sprint history).
+  (sprint history). When "All projects" is selected, an **Add project** button opens a modal that
+  lists your GitHub repositories with a search box.
 
 ### 5.6 Data flow
 
@@ -556,6 +557,7 @@ All routes except `/health` and the two OAuth endpoints require a valid session 
 | POST | `/auth/dev-token` | dev-only | Sign in with a GitHub personal access token; `404` unless `ALLOW_DEV_TOKEN_LOGIN=true` |
 | GET | `/projects?limit=&cursor=` | required | List the actor's projects (paginated) |
 | POST | `/projects` | required | Create project `{ name, color? }` |
+| POST | `/projects/from-repository` | required | Create a project from a GitHub repo `{ repoId, owner, repositoryName, defaultBranch?, isPrivate?, name?, color? }` |
 | GET | `/projects/:projectId` | required | Get one project (404 if not owned) |
 | PATCH | `/projects/:projectId` | required | Update `{ name?, color? }` |
 | DELETE | `/projects/:projectId` | required | Delete a project (cascade) → 204 |
@@ -575,6 +577,7 @@ All routes except `/health` and the two OAuth endpoints require a valid session 
 | DELETE | `/calendar-events/:eventId` | required | Delete an event (204) |
 | GET | `/github/repositories` | required | List the actor's GitHub repositories |
 | POST | `/github/repositories` | required | Link a repo to a project |
+| GET | `/github/projects/:projectId/branches` | required | List branches of the project's linked repository |
 | POST | `/github/stories/:storyId/sync-commits` | required | Fetch + upsert commits for the story branch |
 
 Responses use the frontend DTO shapes (§3). Errors return `{ "message": string }`.
@@ -830,6 +833,10 @@ The detailed gap analysis and phased plan live in **§14**. What remains:
 - **Dev token sign-in**: optional `POST /auth/dev-token` (gated by `ALLOW_DEV_TOKEN_LOGIN`) plus a
   `VITE_DEV_LOGIN` form on the login screen, so a GitHub personal access token can be used instead
   of configuring an OAuth App. GitHub sign-in logic extracted into `GithubSignInService`.
+- **Add project + branch search**: `POST /projects/from-repository` (create a project from a GitHub
+  repository) and `GET /github/projects/:projectId/branches`; the All-projects view has an
+  **Add project** modal with a repository search, and the story branch field is now a searchable
+  branch picker (in both the create-story form and the story detail modal).
 
 ---
 
@@ -879,7 +886,8 @@ These are deliberately documented so future work does not rediscover them.
   rotation is not implemented, and rotating it makes stored tokens undecryptable.
 - **`.env` currently contains a dev-generated encryption key.** It is gitignored. Do not reuse it in
   production; generate per environment.
-- **Single origin CORS** (`CORS_ORIGIN`). Multiple frontends need a different strategy.
+- **CORS**: `CORS_ORIGIN` plus, in non-production, any `localhost`/`127.0.0.1` origin (so a dev
+  server on a different port — e.g. Vite on 5174 — works). Production allows only `CORS_ORIGIN`.
 - **Expired/revoked sessions are purged** by `SessionProvider.deleteExpired` (boot + interval).
   Logout-all is available at `POST /auth/logout-all`.
 
@@ -907,6 +915,9 @@ These are deliberately documented so future work does not rediscover them.
 - **GitHub repositories listing** uses `/user/repos` (repos the user can access), sorted by update.
 - **Author attribution** falls back to the commit author name when GitHub does not map a user.
 - **Renaming a branch on GitHub** does not update the story's stored branch automatically.
+- **Token auth scheme**: the GitHub client sends `Authorization: Bearer` first and retries with the
+  `token` scheme on a 401, so both OAuth tokens and classic personal access tokens (`ghp_…`) work.
+  A rejected token returns `401` with a clear message (not a generic `502`).
 
 ### 13.4 Frontend
 

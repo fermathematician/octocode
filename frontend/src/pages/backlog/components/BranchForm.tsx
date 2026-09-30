@@ -1,16 +1,19 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "../../../components/shared/Button/Button";
-import { TextInput } from "../../../components/shared/TextInput/TextInput";
+import { useProjectBranches } from "../hooks/useProjectBranches";
 import { validateBranchName } from "../validation/story-form.schema";
+import { BranchPicker } from "./BranchPicker";
 import styles from "./BranchForm.module.css";
 
 interface BranchFormProps {
+  projectId: string;
   initialBranch: string;
   submitLabel: string;
   onSubmit: (branch: string) => Promise<void>;
 }
 
 export function BranchForm({
+  projectId,
   initialBranch,
   submitLabel,
   onSubmit,
@@ -19,6 +22,7 @@ export function BranchForm({
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { branches } = useProjectBranches(projectId);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -45,11 +49,12 @@ export function BranchForm({
 
   return (
     <form className={styles.form} onSubmit={handleSubmit} noValidate>
-      <TextInput
+      <BranchPicker
         id="story-branch"
         label="GitHub branch"
         value={branch}
         onChange={setBranch}
+        branches={branches}
         placeholder="feat/story-name"
         error={fieldError ?? undefined}
       />

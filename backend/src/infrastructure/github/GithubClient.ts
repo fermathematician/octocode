@@ -31,11 +31,20 @@ export interface GithubCommitSummary {
   url: string | null;
 }
 
+export interface GithubBranchSummary {
+  name: string;
+}
+
 export interface GithubClient {
   getAuthorizeUrl(state: string): string;
   exchangeCodeForToken(code: string): Promise<GithubToken>;
   getAuthenticatedUser(accessToken: string): Promise<GithubUser>;
   listRepositories(accessToken: string): Promise<GithubRepositorySummary[]>;
+  listBranches(
+    accessToken: string,
+    owner: string,
+    repo: string,
+  ): Promise<GithubBranchSummary[]>;
   listCommits(
     accessToken: string,
     owner: string,

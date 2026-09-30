@@ -14,6 +14,8 @@ import {
   type StoryPriority,
 } from "../../../domain/types";
 import type { CreateStoryInput } from "../../../api/stories";
+import { useProjectBranches } from "../hooks/useProjectBranches";
+import { BranchPicker } from "./BranchPicker";
 import {
   isStoryPoints,
   isStoryPriority,
@@ -52,6 +54,8 @@ export function CreateStoryForm({
   const points = isStoryPoints(storyPoints)
     ? (Number(storyPoints) as StoryPoints)
     : DEFAULT_POINTS;
+
+  const { branches } = useProjectBranches(projectId);
 
   function handleTitleChange(value: string) {
     setTitle(value);
@@ -124,11 +128,12 @@ export function CreateStoryForm({
         error={errors.title}
       />
 
-      <TextInput
+      <BranchPicker
         id="create-story-branch"
         label="Branch"
         value={branch}
         onChange={handleBranchChange}
+        branches={branches}
         placeholder="feat/my-story"
         error={errors.branch}
       />

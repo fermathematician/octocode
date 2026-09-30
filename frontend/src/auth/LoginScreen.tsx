@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { signInWithGithubToken } from "../api/auth";
-import { getApiBaseUrl } from "../api/http";
+import { ApiError, getApiBaseUrl } from "../api/http";
 import styles from "./LoginScreen.module.css";
 
 const DEV_LOGIN_ENABLED = import.meta.env.VITE_DEV_LOGIN === "true";
@@ -24,9 +24,11 @@ export function LoginScreen() {
     try {
       await signInWithGithubToken(token.trim());
       window.location.reload();
-    } catch {
+    } catch (error) {
       setTokenError(
-        "That token was rejected. Check that it is valid and has `repo` and `read:user` scopes.",
+        error instanceof ApiError
+          ? `Backend rejected the sign-in (${error.status}): ${error.message}`
+          : `Could not reach the backend at ${getApiBaseUrl()}. Is it running?`,
       );
     } finally {
       setIsSubmitting(false);
@@ -58,8 +60,9 @@ export function LoginScreen() {
         {DEV_LOGIN_ENABLED ? (
           <form className={styles.devForm} onSubmit={handleTokenLogin}>
             <p className={styles.devNote}>
-              Dev mode: paste a GitHub personal access token (scopes:{" "}
-              <code>repo</code>, <code>read:user</code>).
+              Dev mode (API: <code>{getApiBaseUrl()}</code>): paste a GitHub
+              personal access token (scopes: <code>repo</code>,{" "}
+              <code>read:user</code>).
             </p>
             <label className={styles.devLabel} htmlFor="dev-token">
               Personal access token

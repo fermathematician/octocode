@@ -9,15 +9,21 @@ export class StartGithubLoginController {
   constructor(private readonly service: StartGithubLoginService) {}
 
   handle = (_request: Request, response: Response): void => {
-    const { state, authorizeUrl } = this.service.execute();
+    try {
+      const { state, authorizeUrl } = this.service.execute();
 
-    response.setHeader(
-      "Set-Cookie",
-      serializeCookie(OAUTH_STATE_COOKIE, state, {
-        maxAgeSeconds: 600,
-        secure: env.session.secure,
-      }),
-    );
-    response.redirect(authorizeUrl);
+      response.setHeader(
+        "Set-Cookie",
+        serializeCookie(OAUTH_STATE_COOKIE, state, {
+          maxAgeSeconds: 600,
+          secure: env.session.secure,
+        }),
+      );
+      response.redirect(authorizeUrl);
+    } catch {
+      // Browser flow: if OAuth is not configured, return to the login screen
+      // with an error flag instead of rendering a raw JSON 503.
+      response.redirect(`${env.frontendUrl}/?auth=error`);
+    }
   };
 }

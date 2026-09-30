@@ -1,5 +1,6 @@
 import { AppError } from "../../shared/appError.js";
 import type {
+  GithubBranchSummary,
   GithubClient,
   GithubCommitSummary,
   GithubRepositorySummary,
@@ -43,6 +44,10 @@ interface GithubApiCommit {
   };
   author: { login: string } | null;
   html_url: string;
+}
+
+interface GithubApiBranch {
+  name: string;
 }
 
 const API_BASE = "https://api.github.com";
@@ -215,6 +220,19 @@ export class FetchGithubClient implements GithubClient {
       defaultBranch: repository.default_branch,
       isPrivate: repository.private,
     }));
+  }
+
+  async listBranches(
+    accessToken: string,
+    owner: string,
+    repo: string,
+  ): Promise<GithubBranchSummary[]> {
+    const branches = await this.request<GithubApiBranch[]>(
+      `/repos/${owner}/${repo}/branches?per_page=100`,
+      accessToken,
+    );
+
+    return branches.map((branch) => ({ name: branch.name }));
   }
 
   async listCommits(

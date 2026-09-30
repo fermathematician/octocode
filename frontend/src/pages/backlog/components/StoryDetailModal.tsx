@@ -65,6 +65,7 @@ export function StoryDetailModal({
           <h3 className={styles.sectionTitle}>Branch</h3>
           <BranchForm
             key={story.branch}
+            projectId={story.projectId}
             initialBranch={story.branch}
             submitLabel="Update branch"
             onSubmit={onAssignBranch}

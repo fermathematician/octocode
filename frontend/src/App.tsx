@@ -60,6 +60,11 @@ export function App() {
     setScreen("project");
   }
 
+  function handleProjectCreated(project: Project) {
+    setProjects((current) => [...current, project]);
+    selectProject(project.id);
+  }
+
   if (userLoading) {
     return (
       <div className={styles.loading}>
@@ -96,6 +101,7 @@ export function App() {
             projectId={activeProjectId}
             projects={projects}
             onSelectProject={selectProject}
+            onProjectCreated={handleProjectCreated}
           />
         );
     }
