@@ -5,6 +5,11 @@ import type {
   StoryPriority,
   StoryStatus,
 } from "../../../generated/prisma/client.js";
+import {
+  buildPage,
+  type Paginated,
+  type Pagination,
+} from "../../../shared/pagination.js";
 
 export type StoryWithCommits = Story & { commits: Commit[] };
 
@@ -23,26 +28,31 @@ export interface CreateStoryData {
   branch: string;
 }
 
+export interface UpdateStoryData {
+  title?: string;
+  storyPoints?: number;
+  priority?: StoryPriority;
+}
+
 export interface StoryRepository {
   findManyByOwner(
     ownerId: string,
     filters: StoryFilters,
-  ): Promise<StoryWithCommits[]>;
+    pagination: Pagination,
+  ): Promise<Paginated<StoryWithCommits>>;
   findByIdForOwner(
     id: string,
     ownerId: string,
   ): Promise<StoryWithCommits | null>;
   create(data: CreateStoryData): Promise<StoryWithCommits>;
-  update(
-    id: string,
-    data: { title?: string; storyPoints?: number; priority?: StoryPriority },
-  ): Promise<StoryWithCommits>;
+  update(id: string, data: UpdateStoryData): Promise<StoryWithCommits>;
   updateStatus(
     id: string,
     status: StoryStatus,
     completedAt: Date | null,
   ): Promise<StoryWithCommits>;
   updateBranch(id: string, branch: string): Promise<StoryWithCommits>;
+  moveToSprint(id: string, sprintId: string | null): Promise<StoryWithCommits>;
   findBranchesByProject(projectId: string): Promise<string[]>;
 }
 
@@ -51,11 +61,12 @@ const include = { commits: { orderBy: { committedAt: "desc" as const } } };
 export class PrismaStoryRepository implements StoryRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  findManyByOwner(
+  async findManyByOwner(
     ownerId: string,
     filters: StoryFilters,
-  ): Promise<StoryWithCommits[]> {
-    return this.prisma.story.findMany({
+    pagination: Pagination,
+  ): Promise<Paginated<StoryWithCommits>> {
+    const rows = await this.prisma.story.findMany({
       where: {
         project: { ownerId },
         ...(filters.projectId ? { projectId: filters.projectId } : {}),
@@ -63,8 +74,14 @@ export class PrismaStoryRepository implements StoryRepository {
         ...(filters.priority ? { priority: filters.priority } : {}),
       },
       include,
-      orderBy: { createdAt: "asc" },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      take: pagination.limit + 1,
+      ...(pagination.cursor
+        ? { cursor: { id: pagination.cursor }, skip: 1 }
+        : {}),
     });
+
+    return buildPage(rows, pagination.limit);
   }
 
   findByIdForOwner(
@@ -81,10 +98,7 @@ export class PrismaStoryRepository implements StoryRepository {
     return this.prisma.story.create({ data, include });
   }
 
-  update(
-    id: string,
-    data: { title?: string; storyPoints?: number; priority?: StoryPriority },
-  ): Promise<StoryWithCommits> {
+  update(id: string, data: UpdateStoryData): Promise<StoryWithCommits> {
     return this.prisma.story.update({ where: { id }, data, include });
   }
 
@@ -104,6 +118,17 @@ export class PrismaStoryRepository implements StoryRepository {
     return this.prisma.story.update({
       where: { id },
       data: { branch },
+      include,
+    });
+  }
+
+  moveToSprint(
+    id: string,
+    sprintId: string | null,
+  ): Promise<StoryWithCommits> {
+    return this.prisma.story.update({
+      where: { id },
+      data: { sprintId },
       include,
     });
   }

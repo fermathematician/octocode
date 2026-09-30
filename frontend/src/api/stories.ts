@@ -4,7 +4,7 @@ import type {
   StoryPriority,
   StoryStatus,
 } from "../domain/types";
-import { apiFetch } from "./http";
+import { apiFetch, type Paginated } from "./http";
 
 export interface CreateStoryInput {
   projectId: string;
@@ -14,8 +14,9 @@ export interface CreateStoryInput {
   branch?: string;
 }
 
-export function getStories(): Promise<Story[]> {
-  return apiFetch<Story[]>("/stories");
+export async function getStories(): Promise<Story[]> {
+  const page = await apiFetch<Paginated<Story>>("/stories");
+  return page.items;
 }
 
 export function createStory(input: CreateStoryInput): Promise<Story> {

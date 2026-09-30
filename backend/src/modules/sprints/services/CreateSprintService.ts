@@ -2,11 +2,9 @@ import { AppError } from "../../../shared/appError.js";
 import { addDays, fromIsoDate } from "../../../shared/dates.js";
 import { toSprintDto, type SprintDto } from "../../../shared/presenters.js";
 import type { ProjectRepository } from "../../projects/repositories/ProjectRepository.js";
+import { SPRINT_LENGTH_DAYS } from "../constants.js";
 import type { SprintRepository } from "../repositories/SprintRepository.js";
 import type { CreateSprintInput } from "../validation/sprint.schema.js";
-
-/// All sprints are one week long (see README R10).
-const SPRINT_LENGTH_DAYS = 6;
 
 export class CreateSprintService {
   constructor(

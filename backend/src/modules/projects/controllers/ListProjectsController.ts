@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../../shared/appError.js";
+import type { Pagination } from "../../../shared/pagination.js";
 import type { ListProjectsService } from "../services/ListProjectsService.js";
 
 export class ListProjectsController {
@@ -10,7 +11,10 @@ export class ListProjectsController {
       throw new AppError("Authentication required", 401);
     }
 
-    const projects = await this.service.execute(request.auth.userId);
-    response.json(projects);
+    const { pagination } = request.validated?.query as {
+      pagination: Pagination;
+    };
+    const page = await this.service.execute(request.auth.userId, pagination);
+    response.json(page);
   };
 }

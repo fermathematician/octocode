@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../../shared/appError.js";
+import type { Pagination } from "../../../shared/pagination.js";
 import type { ListCalendarEventsService } from "../services/ListCalendarEventsService.js";
 
 export class ListCalendarEventsController {
@@ -10,8 +11,15 @@ export class ListCalendarEventsController {
       throw new AppError("Authentication required", 401);
     }
 
-    const { date } = (request.validated?.query ?? {}) as { date?: string };
-    const events = await this.service.execute(request.auth.userId, date);
-    response.json(events);
+    const { date, pagination } = request.validated?.query as {
+      date?: string;
+      pagination: Pagination;
+    };
+    const page = await this.service.execute(
+      request.auth.userId,
+      date,
+      pagination,
+    );
+    response.json(page);
   };
 }

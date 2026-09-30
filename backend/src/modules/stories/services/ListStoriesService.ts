@@ -1,3 +1,7 @@
+import {
+  type Paginated,
+  type Pagination,
+} from "../../../shared/pagination.js";
 import { toStoryDto, type StoryDto } from "../../../shared/presenters.js";
 import type {
   StoryFilters,
@@ -7,9 +11,20 @@ import type {
 export class ListStoriesService {
   constructor(private readonly stories: StoryRepository) {}
 
-  async execute(ownerId: string, filters: StoryFilters): Promise<StoryDto[]> {
-    const stories = await this.stories.findManyByOwner(ownerId, filters);
+  async execute(
+    ownerId: string,
+    filters: StoryFilters,
+    pagination: Pagination,
+  ): Promise<Paginated<StoryDto>> {
+    const page = await this.stories.findManyByOwner(
+      ownerId,
+      filters,
+      pagination,
+    );
 
-    return stories.map(toStoryDto);
+    return {
+      items: page.items.map(toStoryDto),
+      nextCursor: page.nextCursor,
+    };
   }
 }

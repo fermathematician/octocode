@@ -1,5 +1,10 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3333";
 
+export interface Paginated<T> {
+  items: T[];
+  nextCursor: string | null;
+}
+
 export class ApiError extends Error {
   readonly status: number;
 

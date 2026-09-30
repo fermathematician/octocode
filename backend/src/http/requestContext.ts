@@ -7,6 +7,7 @@ declare global {
     interface Request {
       auth?: AuthContext;
       validated?: ValidatedRequest;
+      requestId?: string;
     }
   }
 }

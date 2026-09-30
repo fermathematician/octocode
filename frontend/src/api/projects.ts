@@ -1,6 +1,7 @@
 import type { Project } from "../domain/types";
-import { apiFetch } from "./http";
+import { apiFetch, type Paginated } from "./http";
 
-export function getProjects(): Promise<Project[]> {
-  return apiFetch<Project[]>("/projects");
+export async function getProjects(): Promise<Project[]> {
+  const page = await apiFetch<Paginated<Project>>("/projects");
+  return page.items;
 }

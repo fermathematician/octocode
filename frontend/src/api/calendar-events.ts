@@ -2,7 +2,7 @@ import type {
   CalendarEvent,
   CalendarEventType,
 } from "../domain/types";
-import { apiFetch } from "./http";
+import { apiFetch, type Paginated } from "./http";
 
 export interface CreateCalendarEventInput {
   type: CalendarEventType;
@@ -11,8 +11,9 @@ export interface CreateCalendarEventInput {
   startTime: string;
 }
 
-export function getCalendarEvents(): Promise<CalendarEvent[]> {
-  return apiFetch<CalendarEvent[]>("/calendar-events");
+export async function getCalendarEvents(): Promise<CalendarEvent[]> {
+  const page = await apiFetch<Paginated<CalendarEvent>>("/calendar-events");
+  return page.items;
 }
 
 export function createCalendarEvent(

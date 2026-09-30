@@ -58,4 +58,23 @@ export class SessionProvider {
       data: { revokedAt: new Date() },
     });
   }
+
+  async revokeAllForUser(userId: string): Promise<number> {
+    const result = await this.prisma.session.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    return result.count;
+  }
+
+  async deleteExpired(now = new Date()): Promise<number> {
+    const result = await this.prisma.session.deleteMany({
+      where: {
+        OR: [{ expiresAt: { lte: now } }, { revokedAt: { not: null } }],
+      },
+    });
+
+    return result.count;
+  }
 }

@@ -9,9 +9,10 @@
 > implemented** (Express + Prisma + GitHub OAuth sessions). Data is persisted in PostgreSQL. The app
 > requires the backend to run; the frontend no longer ships local seed data.
 >
-> **Last major update:** full backend implementation — Prisma schema, GitHub OAuth login with
-> server-side sessions, domain modules (projects/sprints/stories/calendar), GitHub repository link +
-> commit sync, and frontend auth gate with an HTTP client. See §11 for the change log.
+> **Last major update:** backend Phases 1 & 2 — Prisma schema + GitHub OAuth sessions + domain
+> modules + GitHub repo/commit sync; then centralized error mapping, cursor pagination, full
+> update/delete coverage, and auth/operational hardening (rate limiting, origin check, session
+> cleanup, validated env, graceful shutdown, `/ready`, request logs). See §11 and §14.
 
 ---
 
@@ -539,27 +540,40 @@ All routes except `/health` and the two OAuth endpoints require a valid session 
 | Method | Path | Auth | Description |
 | --- | --- | --- | --- |
 | GET | `/health` | public | Liveness check → `{ status: "ok" }` |
+| GET | `/ready` | public | Readiness check (DB `SELECT 1`) → `{ status: "ready" }` or 503 |
 | GET | `/auth/github` | public | Start OAuth; sets `octocode_oauth_state` cookie, redirects to GitHub |
 | GET | `/auth/github/callback` | public | OAuth callback; upserts user, sets session cookie, redirects to frontend |
 | GET | `/auth/me` | required | Current user |
 | POST | `/auth/logout` | public | Revoke session, clear cookie → 204 |
-| GET | `/projects` | required | List the actor's projects |
+| POST | `/auth/logout-all` | required | Revoke all of the actor's sessions → 204 |
+| GET | `/projects?limit=&cursor=` | required | List the actor's projects (paginated) |
 | POST | `/projects` | required | Create project `{ name, color? }` |
 | GET | `/projects/:projectId` | required | Get one project (404 if not owned) |
-| GET | `/sprints?projectId=` | required | List sprints |
+| PATCH | `/projects/:projectId` | required | Update `{ name?, color? }` |
+| DELETE | `/projects/:projectId` | required | Delete a project (cascade) → 204 |
+| GET | `/sprints?projectId=&limit=&cursor=` | required | List sprints (paginated) |
 | POST | `/sprints` | required | Create sprint `{ projectId, name, startDate }` (endDate = start + 6d) |
-| GET | `/stories?projectId=&status=&priority=` | required | List stories (with commits) |
+| PATCH | `/sprints/:sprintId` | required | Update `{ name?, startDate? }` (endDate recomputed) |
+| DELETE | `/sprints/:sprintId` | required | Delete a sprint (stories keep, `sprintId` set null) → 204 |
+| GET | `/stories?projectId=&status=&priority=&limit=&cursor=` | required | List stories (with commits, paginated) |
 | POST | `/stories` | required | Create story `{ projectId, title, storyPoints, priority, branch? }` |
+| PATCH | `/stories/:storyId` | required | Update `{ title?, storyPoints?, priority? }` |
 | PATCH | `/stories/:storyId/status` | required | Change stage `{ status }`; sets/clears `completedAt` |
 | PATCH | `/stories/:storyId/branch` | required | Rename/assign `{ branch }` |
-| GET | `/calendar-events?date=` | required | List the actor's calendar events |
+| PATCH | `/stories/:storyId/sprint` | required | Move to sprint `{ sprintId }` (`null` clears the sprint) |
+| GET | `/calendar-events?date=&limit=&cursor=` | required | List the actor's calendar events (paginated) |
 | POST | `/calendar-events` | required | Create `{ type, title, date, startTime }` |
+| PATCH | `/calendar-events/:eventId` | required | Update `{ type?, title?, date?, startTime?, notes? }` |
 | DELETE | `/calendar-events/:eventId` | required | Delete an event (204) |
 | GET | `/github/repositories` | required | List the actor's GitHub repositories |
 | POST | `/github/repositories` | required | Link a repo to a project |
 | POST | `/github/stories/:storyId/sync-commits` | required | Fetch + upsert commits for the story branch |
 
 Responses use the frontend DTO shapes (§3). Errors return `{ "message": string }`.
+
+**Pagination:** list endpoints return `{ items, nextCursor }`. Pass `?limit=` (1–200, default 100)
+and `?cursor=<last item id>` to page forward. `nextCursor` is `null` on the last page. Update/delete
+routes return the updated resource or `204`.
 
 ### 6.7 GitHub authentication flow
 
@@ -595,6 +609,14 @@ Frontend LoginScreen
   (generic 500). `ValidationError extends AppError` (400).
 - CORS allows exactly one origin (`CORS_ORIGIN`) with credentials.
 - Cookies are `HttpOnly` + `SameSite=Lax`; `Secure` only when `COOKIE_SECURE=true` (HTTPS).
+- **Rate limiting**: in-memory, per-IP — global `RATE_LIMIT_MAX` per `RATE_LIMIT_WINDOW_MS`, and a
+  stricter `RATE_LIMIT_AUTH_MAX` on `/auth/*`. Exceeded requests return `429` with `Retry-After`.
+- **CSRF**: OAuth `state` + `SameSite=Lax` + an `Origin` check on state-changing requests
+  (`verifyOrigin`); requests without an `Origin` (curl, server-to-server) are allowed.
+- **Session maintenance**: `SessionProvider.deleteExpired` runs at boot and on an interval
+  (`SESSION_CLEANUP_INTERVAL_MS`); `POST /auth/logout-all` revokes every session for the actor.
+- **Observability**: every request gets a `requestId`, an `x-request-id` response header, and a
+  structured JSON log line (method, path, status, duration).
 
 ### 6.9 Environment variables (`backend/.env`, documented in `.env.example`)
 
@@ -612,6 +634,10 @@ Frontend LoginScreen
 | `SESSION_COOKIE_NAME` | no | `octocode_session` | Session cookie name |
 | `SESSION_TTL_DAYS` | no | `30` | Session lifetime |
 | `COOKIE_SECURE` | no | `false` | Set `true` behind HTTPS |
+| `SESSION_CLEANUP_INTERVAL_MS` | no | `21600000` | Interval for purging expired/revoked sessions |
+| `RATE_LIMIT_WINDOW_MS` | no | `60000` | Rate-limit window |
+| `RATE_LIMIT_MAX` | no | `300` | Max requests per window per IP |
+| `RATE_LIMIT_AUTH_MAX` | no | `20` | Max `/auth/*` requests per window per IP |
 
 Generate a key:
 `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`.
@@ -622,6 +648,10 @@ Generate a key:
   thrown by validation schemas.
 - Routes/controllers do not catch `AppError`; the global `errorHandler` translates it.
 - Unexpected errors log server-side and return a generic `500 { message: "Internal server error" }`.
+- Known Prisma errors are mapped centrally (`shared/prismaErrors.ts`): `P2002` → 409 (conflict),
+  `P2025` → 404 (not found), `P2003` → 409 (related-record conflict). Unknown Prisma errors stay 500.
+- Malformed JSON bodies are rejected with `400`.
+- Rate-limited requests return `429` with a `Retry-After` header.
 
 ---
 
@@ -722,19 +752,22 @@ Never claim a check passed without executing it.
 
 ## 9. Roadmap / not implemented
 
+The detailed gap analysis and phased plan live in **§14**. What remains:
+
 1. **GitHub App** — installation tokens (short-lived) + signed webhooks + `GithubWebhookEvent`
    idempotency; automatic commit sync instead of the manual endpoint.
 2. **Database seed script** — the initial migration is committed; a seed script is still missing.
 3. **Tests** — backend integration tests (supertest + test DB) and frontend tests (Vitest + RTL).
    Both require approval (new dependencies).
-4. **Sprint management UI** — create/close sprints and assign stories.
+4. **Sprint management UI** — the API now supports sprint update/delete and moving stories between
+   sprints (Phase 1); the UI still lacks those controls.
 5. **Google Calendar sync** — OAuth + token storage + two-way sync.
-6. **Pagination** — list endpoints currently return all rows.
-7. **Session maintenance** — periodic cleanup of expired sessions; logout-all-devices.
-8. **Rate limiting** on auth endpoints; stricter CSRF (`Origin` checks).
-9. **Accessibility** — keyboard-accessible kanban movement, modal focus trap.
-10. **Collaboration** — project membership/roles (the schema is single-owner today).
-11. **Shared types** — a single source of truth for DTOs (currently duplicated in frontend/backend).
+6. **Session maintenance** — periodic cleanup of expired sessions; logout-all-devices.
+7. **Rate limiting** on auth endpoints; stricter CSRF (`Origin` checks).
+8. **Accessibility** — keyboard-accessible kanban movement, modal focus trap.
+9. **Collaboration** — project membership/roles (the schema is single-owner today).
+10. **Shared types** — a single source of truth for DTOs (currently duplicated in frontend/backend).
+11. **Frontend pagination UI** — the API paginates; the SPA still fetches only the first page.
 
 ---
 
@@ -772,10 +805,17 @@ Never claim a check passed without executing it.
   Today planner screen and reminder creation.
 - **Kanban cleanup**: removed card arrow buttons (DnD only); rewrote this README for AI agents.
 - **Create-story branch field**: New story form has an editable, title-prefilled branch.
-- **Backend + auth (this update)**: Prisma schema (10 tables), GitHub OAuth login with server-side
-  sessions and encrypted tokens, domain modules (projects/sprints/stories/calendar), GitHub repo
-  link + commit sync, composition root, validation/error infrastructure; frontend switched to the
-  REST API with a login gate and HTTP client; removed local seed data.
+- **Backend + auth**: Prisma schema (10 tables), GitHub OAuth login with server-side sessions and
+  encrypted tokens, domain modules (projects/sprints/stories/calendar), GitHub repo link + commit
+  sync, composition root, validation/error infrastructure; frontend switched to the REST API with a
+  login gate and HTTP client; removed local seed data.
+- **Backend Phase 1**: centralized Prisma error mapping (409/404), cursor pagination on all list
+  endpoints, and full update/delete coverage — project update/delete, sprint update/delete, story
+  update and move-to-sprint, calendar-event update. The frontend API unwraps the paginated envelope.
+- **Backend Phase 2 (this update)**: validated environment config, graceful shutdown, `/ready` DB
+  readiness probe, structured JSON request logs with request IDs, in-memory rate limiting (global +
+  strict `/auth`), an `Origin` check on state-changing requests, periodic session cleanup, and
+  `POST /auth/logout-all`. Gap analysis and remaining phases documented in §14.
 
 ---
 
@@ -811,25 +851,28 @@ These are deliberately documented so future work does not rediscover them.
 - **OAuth App, not GitHub App.** Tokens are long-lived user tokens (revoked only by the user).
   There is no refresh flow, no installation tokens, no webhook signature verification. The
   `GithubWebhookEvent` table is **reserved and unused**.
-- **No rate limiting** on auth or any endpoint.
-- **CSRF**: only the OAuth `state` check plus `SameSite=Lax`. No double-submit token.
-- **`TOKEN_ENCRYPTION_KEY` is required at boot.** The app fails fast if it is missing/invalid. Key
-  rotation is not implemented; rotating the key makes stored tokens undecryptable.
+- **Rate limiting is in-memory and per-IP** (defaults: 300/min global, 20/min on `/auth`). It resets
+  on restart and does not coordinate across processes; use a shared limiter (e.g. Redis) in front for
+  multi-instance deployments. It also relies on `request.ip`, so configure Express `trust proxy`
+  behind a reverse proxy (not yet wired).
+- **CSRF**: OAuth `state` check plus `SameSite=Lax` plus an `Origin` check on state-changing
+  requests. No double-submit token.
+- **`TOKEN_ENCRYPTION_KEY` is required at boot.** The app fails fast if it is missing/invalid; key
+  rotation is not implemented, and rotating it makes stored tokens undecryptable.
 - **`.env` currently contains a dev-generated encryption key.** It is gitignored. Do not reuse it in
   production; generate per environment.
 - **Single origin CORS** (`CORS_ORIGIN`). Multiple frontends need a different strategy.
-- **Sessions never expire from the DB automatically.** `findValid` rejects expired rows, but there is
-  no cleanup job. Expired rows accumulate.
+- **Expired/revoked sessions are purged** by `SessionProvider.deleteExpired` (boot + interval).
+  Logout-all is available at `POST /auth/logout-all`.
 
 ### 13.2 Data / Prisma
 
 - **Initial migration is committed** at `backend/prisma/migrations/…_init`. Apply it with
   `npm run prisma:migrate`. There is **no seed script**, so a fresh database is empty.
-- **No pagination** on `/projects`, `/sprints`, `/stories`, `/calendar-events`. Fine for small data;
-  a scaling risk.
-- **Unique-constraint violations become 500s.** e.g. posting a duplicate story branch or linking the
-  same repo twice (`repoId` unique) throws a Prisma error that the global handler reports as a
-  generic 500. Proper mapping to 409 is a known gap.
+- **Pagination is cursor-based** (`?limit=&cursor=`) and returns `{ items, nextCursor }`. The
+  frontend still fetches only the first page (default limit 100); a pagination UI is future work.
+- **Prisma errors are mapped centrally**: `P2002` → 409, `P2025` → 404, `P2003` → 409
+  (`backend/src/shared/prismaErrors.ts`). Unknown Prisma errors still surface as 500.
 - **`Story.branch` unique per project**; the API dedupes only auto-generated names. A user-supplied
   duplicate branch will conflict at the DB level.
 - **Ownership is enforced in services** (`ownerId`), not at the DB. Unauthorized IDs return 404.
@@ -866,3 +909,113 @@ These are deliberately documented so future work does not rediscover them.
   they can drift. A shared types package is future work.
 - **The root `src/`, `tests/`, `evals/` are harness tooling**, not the app — do not confuse them with
   the product.
+
+---
+
+## 14. Backend completion plan (gap analysis & phases)
+
+This section records what is required to call the backend "finished", the analysis behind it, and the
+phased plan. **Phases 1 and 2 are implemented** (see §11); Phases 3–5 are outstanding.
+
+### 14.1 Definition of done
+
+1. Every product-brief feature has an API, or a documented decision to defer it.
+2. Known failures map to correct HTTP status codes; no leaked 500s for expected conditions.
+3. List endpoints are bounded (paginated).
+4. Auth is hardened (rate limiting, CSRF/origin checks, session cleanup).
+5. Automated tests cover services and key routes.
+6. Operability: env validation, graceful shutdown, health/readiness, structured logs.
+7. Local setup is reproducible (seed script, containerized Postgres).
+8. Docs (this README + OpenAPI) are current.
+
+### 14.2 Gap analysis
+
+#### A. Product functionality
+
+| Gap | Status |
+| --- | --- |
+| Story editing (`title`/`storyPoints`/`priority`) | ✅ Phase 1 — `PATCH /stories/:storyId` |
+| Story → sprint assignment | ✅ Phase 1 — `PATCH /stories/:storyId/sprint` |
+| Sprint update/delete | ✅ Phase 1 — `PATCH`/`DELETE /sprints/:sprintId` |
+| Project update/delete | ✅ Phase 1 — `PATCH`/`DELETE /projects/:projectId` |
+| Calendar event update (incl. `notes`) | ✅ Phase 1 — `PATCH /calendar-events/:eventId` |
+| GitHub repository unlink | ❌ not implemented |
+| Google Calendar sync (R12) | ❌ not implemented |
+
+#### B. Correctness / robustness
+
+| Gap | Status |
+| --- | --- |
+| Prisma error mapping (`P2002`/`P2025`/`P2003`) | ✅ Phase 1 |
+| List pagination (`limit`/`cursor`) | ✅ Phase 1 |
+| Create-story branch race | ⚠️ mitigated by `P2002` → 409 (not transactional) |
+| `completedAt` UTC-midnight policy | ⚠️ documented, unchanged |
+| Session maintenance (cleanup, revoke-all) | ✅ Phase 2 |
+| DB readiness (`/ready`) | ✅ Phase 2 |
+
+#### C. Integrations
+
+| Gap | Status |
+| --- | --- |
+| GitHub App + webhooks + automatic commit sync | ❌ Phase 4 |
+| Google Calendar two-way sync | ❌ Phase 4 |
+| Repo/commit pagination (GitHub API) | ❌ Phase 4 |
+
+#### D. Operations / quality
+
+| Gap | Status |
+| --- | --- |
+| Tests | ❌ Phase 3 (needs `vitest`/`supertest`, requires approval) |
+| Seed script | ❌ Phase 3 |
+| Env validation | ✅ Phase 2 |
+| Graceful shutdown | ✅ Phase 2 |
+| Structured logging / request IDs | ✅ Phase 2 |
+| OpenAPI spec | ❌ Phase 5 |
+| Docker Compose / CI | ❌ Phase 3 |
+
+#### E. Security
+
+| Gap | Status |
+| --- | --- |
+| Rate limiting on auth | ✅ Phase 2 |
+| CSRF `Origin` check (no double-submit token) | ✅ Phase 2 |
+| Session cleanup | ✅ Phase 2 |
+| Audit logging / account deletion | ❌ later |
+
+### 14.3 Phases
+
+**Phase 1 — Correctness & ergonomics — ✅ done**
+
+1. Central Prisma error mapping (`shared/prismaErrors.ts`): `P2002`→409, `P2025`→404, `P2003`→409.
+2. `PATCH /stories/:storyId` (title/points/priority).
+3. `PATCH`/`DELETE /projects/:projectId`; `PATCH`/`DELETE /sprints/:sprintId`;
+   `PATCH /stories/:storyId/sprint`.
+4. `PATCH /calendar-events/:eventId` (type/title/date/startTime/notes).
+5. Cursor pagination (`?limit=&cursor=`) on all list endpoints → `{ items, nextCursor }`; the
+   frontend unwraps `.items`.
+
+**Phase 2 — Auth & operational hardening — ✅ done**
+
+6. Session cleanup (`SessionProvider.deleteExpired`, at boot + interval) and logout-all
+   (`POST /auth/logout-all`).
+7. In-memory rate limiting (global + strict `/auth`) and an `Origin` check on state-changing
+   requests.
+8. Validated environment config; graceful shutdown (SIGTERM/SIGINT + Prisma disconnect); `/ready` DB
+   readiness probe; structured JSON request logs with request IDs.
+
+**Phase 3 — Reproducibility & tests — ❌ not started**
+
+9. `prisma/seed.ts` + `prisma db seed`; `docker-compose.yml` for Postgres.
+10. Test suite: service unit tests with in-memory repositories; route integration tests with a test
+    DB. Requires new dev dependencies (`vitest`, `supertest`) — needs approval.
+11. CI running typecheck + lint + build + tests.
+
+**Phase 4 — Integrations — ❌ not started**
+
+12. GitHub App migration: installation tokens, webhook endpoint + signature verification,
+    `GithubWebhookEvent` idempotency, webhook-driven commit sync; paginate repos/commits.
+13. Google Calendar sync (OAuth + reconcile) — its own project.
+
+**Phase 5 — Docs — ❌ not started**
+
+14. OpenAPI spec checked in; keep §6/§9/§13/§14 current.

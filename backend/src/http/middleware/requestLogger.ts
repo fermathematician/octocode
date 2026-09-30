@@ -1,0 +1,25 @@
+import { randomUUID } from "node:crypto";
+import type { RequestHandler } from "express";
+
+export const requestLogger: RequestHandler = (request, response, next) => {
+  const requestId = randomUUID();
+  request.requestId = requestId;
+  response.setHeader("x-request-id", requestId);
+
+  const startedAt = Date.now();
+
+  response.on("finish", () => {
+    console.log(
+      JSON.stringify({
+        level: "info",
+        requestId,
+        method: request.method,
+        path: request.originalUrl,
+        status: response.statusCode,
+        durationMs: Date.now() - startedAt,
+      }),
+    );
+  });
+
+  next();
+};

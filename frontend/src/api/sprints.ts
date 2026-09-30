@@ -1,7 +1,8 @@
 import type { Sprint } from "../domain/types";
-import { apiFetch } from "./http";
+import { apiFetch, type Paginated } from "./http";
 
-export function getSprints(projectId?: string): Promise<Sprint[]> {
+export async function getSprints(projectId?: string): Promise<Sprint[]> {
   const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
-  return apiFetch<Sprint[]>(`/sprints${query}`);
+  const page = await apiFetch<Paginated<Sprint>>(`/sprints${query}`);
+  return page.items;
 }
