@@ -11,6 +11,9 @@ import { PrismaGithubRepositoryRepository } from "../modules/github/repositories
 import { PrismaProjectRepository } from "../modules/projects/repositories/ProjectRepository.js";
 import { PrismaSprintRepository } from "../modules/sprints/repositories/SprintRepository.js";
 import { PrismaStoryRepository } from "../modules/stories/repositories/StoryRepository.js";
+import { FetchGoogleCalendarClient } from "../infrastructure/google/FetchGoogleCalendarClient.js";
+import { GoogleTokenProvider } from "../infrastructure/google/GoogleTokenProvider.js";
+import { PrismaCalendarSyncStateRepository } from "../modules/calendar/repositories/CalendarSyncStateRepository.js";
 
 export const tokenCipher = new TokenCipher(env.tokenEncryptionKey);
 
@@ -35,3 +38,18 @@ export const githubRepositoryRepository = new PrismaGithubRepositoryRepository(
   prisma,
 );
 export const commitRepository = new PrismaCommitRepository(prisma);
+export const calendarSyncStateRepository = new PrismaCalendarSyncStateRepository(
+  prisma,
+);
+
+export const googleCalendarClient = new FetchGoogleCalendarClient({
+  clientId: env.google.clientId,
+  clientSecret: env.google.clientSecret,
+  callbackUrl: env.google.callbackUrl,
+});
+
+export const googleTokenProvider = new GoogleTokenProvider(
+  oauthAccountRepository,
+  tokenCipher,
+  googleCalendarClient,
+);

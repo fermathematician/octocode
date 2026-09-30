@@ -22,6 +22,7 @@ export class CreateProjectFromRepositoryService {
     try {
       const repository = await this.githubRepositories.save({
         projectId: project.id,
+        userId: ownerId,
         repoId: input.repoId,
         owner: input.owner,
         name: input.repositoryName,

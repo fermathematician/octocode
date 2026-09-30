@@ -39,6 +39,7 @@ async function main(): Promise<void> {
   await prisma.githubRepository.create({
     data: {
       projectId: project.id,
+      userId: user.id,
       repoId: `seed-${project.id}`,
       owner: "octocode-labs",
       name: "octocode",

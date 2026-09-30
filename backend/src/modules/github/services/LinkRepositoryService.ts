@@ -28,6 +28,7 @@ export class LinkRepositoryService {
 
     const repository = await this.repositories.save({
       projectId: input.projectId,
+      userId: ownerId,
       repoId: input.repoId,
       owner: input.owner,
       name: input.name,

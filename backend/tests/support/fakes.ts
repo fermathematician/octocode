@@ -1,6 +1,10 @@
 import {
+  CalendarEventSource,
+  CalendarEventType,
   StoryPriority,
   StoryStatus,
+  type CalendarEvent,
+  type CalendarSyncState,
   type GithubRepository,
   type OAuthAccount,
   type OAuthProvider,
@@ -10,9 +14,20 @@ import {
   type User,
 } from "../../src/generated/prisma/client.js";
 import type {
+  CalendarEventRepository,
+  CreateCalendarEventData,
+  UpdateCalendarEventData,
+  UpsertExternalCalendarEventData,
+} from "../../src/modules/calendar/repositories/CalendarEventRepository.js";
+import type {
+  CalendarSyncStateRepository,
+  SaveCalendarSyncStateData,
+} from "../../src/modules/calendar/repositories/CalendarSyncStateRepository.js";
+import type {
   OAuthAccountRecord,
   OAuthAccountRepository,
   SaveOAuthAccountData,
+  UpdateOAuthTokensData,
 } from "../../src/modules/auth/repositories/OAuthAccountRepository.js";
 import type {
   UserProfileData,
@@ -52,6 +67,7 @@ export class InMemoryStore {
   sprints: Sprint[] = [];
   stories: Story[] = [];
   githubRepositories: GithubRepository[] = [];
+  calendarEvents: CalendarEvent[] = [];
   private sequence = 0;
 
   nextId(prefix: string): string {
@@ -123,6 +139,30 @@ export class InMemoryStore {
     };
     this.stories.push(story);
     return story;
+  }
+
+  seedCalendarEvent(
+    userId: string,
+    overrides: Partial<CalendarEvent> = {},
+  ): CalendarEvent {
+    const now = new Date();
+    const event: CalendarEvent = {
+      id: this.nextId("event"),
+      userId,
+      type: CalendarEventType.TASK,
+      title: "Event",
+      date: now,
+      startTime: "09:00",
+      notes: "",
+      source: CalendarEventSource.LOCAL,
+      externalId: null,
+      externalUpdatedAt: null,
+      createdAt: now,
+      updatedAt: now,
+      ...overrides,
+    };
+    this.calendarEvents.push(event);
+    return event;
   }
 }
 
@@ -520,6 +560,7 @@ export class InMemoryGithubRepositoryRepository
     const now = new Date();
 
     if (existing) {
+      existing.userId = data.userId;
       existing.repoId = data.repoId;
       existing.owner = data.owner;
       existing.name = data.name;
@@ -533,6 +574,7 @@ export class InMemoryGithubRepositoryRepository
     const repository: GithubRepository = {
       id: this.store.nextId("repo"),
       projectId: data.projectId,
+      userId: data.userId,
       repoId: data.repoId,
       owner: data.owner,
       name: data.name,
@@ -607,6 +649,29 @@ export class InMemoryOAuthAccountRepository
     this.accounts.push(stored);
     return toModel(stored);
   }
+
+  async updateTokens(
+    id: string,
+    data: UpdateOAuthTokensData,
+  ): Promise<void> {
+    const account = this.accounts.find((candidate) => candidate.id === id);
+
+    if (!account) {
+      return;
+    }
+
+    account.accessToken = data.accessToken;
+    account.refreshToken = data.refreshToken;
+    account.tokenType = data.tokenType;
+    account.expiresAt = data.expiresAt;
+  }
+
+  async deleteByUser(userId: string, provider: OAuthProvider): Promise<void> {
+    this.accounts = this.accounts.filter(
+      (account) =>
+        !(account.userId === userId && account.provider === provider),
+    );
+  }
 }
 
 function toRecord(
@@ -633,4 +698,210 @@ function toModel(account: SaveOAuthAccountData & { id: string }): OAuthAccount {
     createdAt: now,
     updatedAt: now,
   };
+}
+
+export class InMemoryCalendarEventRepository
+  implements CalendarEventRepository
+{
+  constructor(private readonly store: InMemoryStore) {}
+
+  async findManyByUser(
+    userId: string,
+    date: Date | undefined,
+    pagination: Pagination,
+  ): Promise<Paginated<CalendarEvent>> {
+    const rows = this.store.calendarEvents.filter(
+      (event) =>
+        event.userId === userId &&
+        (!date || event.date.getTime() === date.getTime()),
+    );
+
+    return buildPage(rows, pagination.limit);
+  }
+
+  async findByIdForUser(
+    id: string,
+    userId: string,
+  ): Promise<CalendarEvent | null> {
+    return (
+      this.store.calendarEvents.find(
+        (event) => event.id === id && event.userId === userId,
+      ) ?? null
+    );
+  }
+
+  async findByExternalId(
+    userId: string,
+    externalId: string,
+  ): Promise<CalendarEvent | null> {
+    return (
+      this.store.calendarEvents.find(
+        (event) =>
+          event.userId === userId && event.externalId === externalId,
+      ) ?? null
+    );
+  }
+
+  async findLocalWithoutExternalId(userId: string): Promise<CalendarEvent[]> {
+    return this.store.calendarEvents.filter(
+      (event) =>
+        event.userId === userId &&
+        event.source === CalendarEventSource.LOCAL &&
+        event.externalId === null,
+    );
+  }
+
+  async create(data: CreateCalendarEventData): Promise<CalendarEvent> {
+    const now = new Date();
+    const event: CalendarEvent = {
+      id: this.store.nextId("event"),
+      userId: data.userId,
+      type: data.type,
+      title: data.title,
+      date: data.date,
+      startTime: data.startTime,
+      notes: "",
+      source: CalendarEventSource.LOCAL,
+      externalId: null,
+      externalUpdatedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.store.calendarEvents.push(event);
+    return event;
+  }
+
+  async upsertByExternalId(
+    userId: string,
+    externalId: string,
+    data: UpsertExternalCalendarEventData,
+  ): Promise<CalendarEvent> {
+    const existing = await this.findByExternalId(userId, externalId);
+
+    if (existing) {
+      existing.type = data.type;
+      existing.title = data.title;
+      existing.date = data.date;
+      existing.startTime = data.startTime;
+      existing.notes = data.notes;
+      existing.externalUpdatedAt = data.externalUpdatedAt;
+      existing.updatedAt = new Date();
+      return existing;
+    }
+
+    const now = new Date();
+    const event: CalendarEvent = {
+      id: this.store.nextId("event"),
+      userId,
+      type: data.type,
+      title: data.title,
+      date: data.date,
+      startTime: data.startTime,
+      notes: data.notes,
+      source: CalendarEventSource.GOOGLE,
+      externalId,
+      externalUpdatedAt: data.externalUpdatedAt,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.store.calendarEvents.push(event);
+    return event;
+  }
+
+  async setExternalId(
+    id: string,
+    externalId: string,
+    externalUpdatedAt: Date,
+  ): Promise<CalendarEvent> {
+    const event = this.store.calendarEvents.find(
+      (candidate) => candidate.id === id,
+    );
+
+    if (!event) {
+      throw new Error(`Calendar event ${id} not found`);
+    }
+
+    event.externalId = externalId;
+    event.externalUpdatedAt = externalUpdatedAt;
+    event.updatedAt = new Date();
+    return event;
+  }
+
+  async update(
+    id: string,
+    userId: string,
+    data: UpdateCalendarEventData,
+  ): Promise<CalendarEvent | null> {
+    const event = await this.findByIdForUser(id, userId);
+
+    if (!event) {
+      return null;
+    }
+
+    if (data.type !== undefined) event.type = data.type;
+    if (data.title !== undefined) event.title = data.title;
+    if (data.date !== undefined) event.date = data.date;
+    if (data.startTime !== undefined) event.startTime = data.startTime;
+    if (data.notes !== undefined) event.notes = data.notes;
+    event.updatedAt = new Date();
+    return event;
+  }
+
+  async delete(id: string, userId: string): Promise<void> {
+    this.store.calendarEvents = this.store.calendarEvents.filter(
+      (event) => !(event.id === id && event.userId === userId),
+    );
+  }
+
+  async deleteByExternalId(userId: string, externalId: string): Promise<void> {
+    this.store.calendarEvents = this.store.calendarEvents.filter(
+      (event) =>
+        !(event.userId === userId && event.externalId === externalId),
+    );
+  }
+
+  async deleteBySource(
+    userId: string,
+    source: CalendarEventSource,
+  ): Promise<void> {
+    this.store.calendarEvents = this.store.calendarEvents.filter(
+      (event) => !(event.userId === userId && event.source === source),
+    );
+  }
+}
+
+export class InMemoryCalendarSyncStateRepository
+  implements CalendarSyncStateRepository
+{
+  private states = new Map<string, CalendarSyncState>();
+
+  async findByUser(userId: string): Promise<CalendarSyncState | null> {
+    return this.states.get(userId) ?? null;
+  }
+
+  async save(
+    userId: string,
+    data: SaveCalendarSyncStateData,
+  ): Promise<CalendarSyncState> {
+    const now = new Date();
+    const state: CalendarSyncState = {
+      id: `sync-${userId}`,
+      userId,
+      calendarId: data.calendarId,
+      syncToken: data.syncToken,
+      lastSyncedAt: data.lastSyncedAt,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.states.set(userId, state);
+    return state;
+  }
+
+  async deleteByUser(userId: string): Promise<void> {
+    this.states.delete(userId);
+  }
+
+  async listUserIds(): Promise<string[]> {
+    return [...this.states.keys()];
+  }
 }

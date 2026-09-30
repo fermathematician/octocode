@@ -54,6 +54,7 @@ export interface CalendarEventDto {
   date: string;
   startTime: string;
   notes: string;
+  source: string;
 }
 
 export interface UserDto {
@@ -141,6 +142,7 @@ export function toCalendarEventDto(event: CalendarEventModel): CalendarEventDto 
     date: toIsoDate(event.date),
     startTime: event.startTime,
     notes: event.notes,
+    source: event.source.toLowerCase(),
   };
 }
 

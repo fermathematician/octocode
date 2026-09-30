@@ -31,6 +31,7 @@ export function CalendarEventList({ events }: CalendarEventListProps) {
           <Badge tone={event.type === "meeting" ? "accent" : "neutral"}>
             {CALENDAR_EVENT_TYPE_LABELS[event.type]}
           </Badge>
+          {event.source === "google" ? <Badge>Google</Badge> : null}
         </li>
       ))}
     </ul>

@@ -12,6 +12,7 @@ import { useCalendarEvents } from "./hooks/useCalendarEvents";
 import { CalendarEventForm } from "./components/CalendarEventForm";
 import { CalendarEventList } from "./components/CalendarEventList";
 import { CalendarGrid } from "./components/CalendarGrid";
+import { CalendarSyncBar } from "./components/CalendarSyncBar";
 import styles from "./index.module.css";
 
 export function CalendarPage() {
@@ -58,6 +59,8 @@ export function CalendarPage() {
           </Button>
         </div>
       </header>
+
+      <CalendarSyncBar onDataChanged={reload} />
 
       {loading ? <Spinner label="Loading calendar…" /> : null}
 

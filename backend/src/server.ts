@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { app } from "./app.js";
 import { env } from "./config/env.js";
+import { syncAllCalendars } from "./composition/index.js";
 import { sessionProvider } from "./composition/shared.js";
 import { prisma } from "./infrastructure/prisma/client.js";
 
@@ -27,6 +28,19 @@ const cleanupTimer = setInterval(() => {
 }, env.session.cleanupIntervalMs);
 cleanupTimer.unref();
 
+async function syncCalendars(): Promise<void> {
+  try {
+    await syncAllCalendars.execute();
+  } catch (error) {
+    console.error("Calendar sync job failed.", error);
+  }
+}
+
+const calendarSyncTimer = setInterval(() => {
+  void syncCalendars();
+}, env.google.syncIntervalMs);
+calendarSyncTimer.unref();
+
 let shuttingDown = false;
 
 function shutdown(signal: string): void {
@@ -37,6 +51,7 @@ function shutdown(signal: string): void {
   shuttingDown = true;
   console.log(`Received ${signal}. Shutting down…`);
   clearInterval(cleanupTimer);
+  clearInterval(calendarSyncTimer);
 
   server.close(() => {
     void prisma.$disconnect().finally(() => process.exit(0));

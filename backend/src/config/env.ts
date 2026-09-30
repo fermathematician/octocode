@@ -90,6 +90,19 @@ export const env = {
       "http://localhost:3333/auth/github/callback",
     ),
   },
+  google: {
+    clientId: readOptional("GOOGLE_CLIENT_ID", ""),
+    clientSecret: readOptional("GOOGLE_CLIENT_SECRET", ""),
+    callbackUrl: readUrl(
+      "GOOGLE_OAUTH_CALLBACK_URL",
+      "http://localhost:3333/calendar/google/callback",
+    ),
+    timeZone: readOptional("GOOGLE_CALENDAR_TIME_ZONE", "UTC"),
+    syncIntervalMs: readNumber(
+      "GOOGLE_CALENDAR_SYNC_INTERVAL_MS",
+      15 * 60 * 1000,
+    ),
+  },
   session: {
     cookieName: readOptional("SESSION_COOKIE_NAME", "octocode_session"),
     ttlDays: readNumber("SESSION_TTL_DAYS", 30),

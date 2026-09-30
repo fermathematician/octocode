@@ -63,6 +63,7 @@ describe("ListProjectBranchesService", () => {
 
     await githubRepositories.save({
       projectId: project.id,
+      userId: user.id,
       repoId: "1",
       owner: "owner",
       name: "repo",

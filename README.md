@@ -481,12 +481,14 @@ Enums: `OAuthProvider`, `StoryPriority`, `StoryStatus`, `CalendarEventType`.
 | `OAuthAccount` | One external identity + tokens | `[provider, providerAccountId]` unique; `accessToken`/`refreshToken` store **ciphertext** |
 | `Session` | Server-side session | `tokenHash` unique (sha256 of cookie token); `expiresAt`, `revokedAt` |
 | `Project` | A user's project | `ownerId → User`; optional 1:1 `repository`; has sprints, stories |
-| `GithubRepository` | Linked repo | `projectId` unique; `[owner, name]` unique; `repoId` unique; `installationId?` |
+| `GithubRepository` | Linked repo | `projectId` unique; `[userId, repoId]` unique (per user); `owner`/`name` = GitHub repo; `installationId?` |
 | `Sprint` | One-week time box | `projectId → Project`; `startDate`, `endDate` |
 | `Story` | Unit of work | `[projectId, branch]` unique; `priority`, `status`, `completedAt`; has commits |
 | `Commit` | A commit on a story branch | `[repositoryId, sha]` unique; `storyId? → Story`; `branch` |
-| `CalendarEvent` | Planner item | `userId → User`; `type`, `date`, `startTime`; index `[userId, date]` |
+| `CalendarEvent` | Planner item | `userId → User`; `type`, `date`, `startTime`; `source` (LOCAL/GOOGLE), `externalId`, `externalUpdatedAt`; `[userId, externalId]` unique |
 | `GithubWebhookEvent` | Webhook idempotency | `deliveryId` unique — **reserved, not used yet** (§13) |
+
+| `CalendarSyncState` | Google sync cursor | `userId` unique; `calendarId`, `syncToken`, `lastSyncedAt` |
 
 Notes:
 - `GithubRepository` isolates provider data and is ready for a future GitHub App
@@ -575,6 +577,11 @@ All routes except `/health` and the two OAuth endpoints require a valid session 
 | POST | `/calendar-events` | required | Create `{ type, title, date, startTime }` |
 | PATCH | `/calendar-events/:eventId` | required | Update `{ type?, title?, date?, startTime?, notes? }` |
 | DELETE | `/calendar-events/:eventId` | required | Delete an event (204) |
+| GET | `/calendar/google` | required | Start linking Google Calendar (redirect to Google) |
+| GET | `/calendar/google/callback` | required | Google OAuth callback → redirect to the app |
+| GET | `/calendar/google/status` | required | `{ connected, lastSyncedAt }` |
+| DELETE | `/calendar/google` | required | Disconnect Google Calendar → 204 |
+| POST | `/calendar/google/sync` | required | Pull + push and return a sync summary |
 | GET | `/github/repositories` | required | List the actor's GitHub repositories |
 | POST | `/github/repositories` | required | Link a repo to a project |
 | GET | `/github/projects/:projectId/branches` | required | List branches of the project's linked repository |
@@ -650,6 +657,11 @@ Frontend LoginScreen
 | `RATE_LIMIT_MAX` | no | `300` | Max requests per window per IP |
 | `RATE_LIMIT_AUTH_MAX` | no | `20` | Max `/auth/*` requests per window per IP |
 | `ALLOW_DEV_TOKEN_LOGIN` | no | `false` | Dev-only PAT sign-in (`POST /auth/dev-token`); **never enable in production** |
+| `GOOGLE_CLIENT_ID` | for calendar | `""` | Google OAuth client id |
+| `GOOGLE_CLIENT_SECRET` | for calendar | `""` | Google OAuth client secret |
+| `GOOGLE_OAUTH_CALLBACK_URL` | no | `http://localhost:3333/calendar/google/callback` | Google redirect URI |
+| `GOOGLE_CALENDAR_TIME_ZONE` | no | `UTC` | Time zone for events pushed to Google |
+| `GOOGLE_CALENDAR_SYNC_INTERVAL_MS` | no | `900000` | Background sync interval |
 
 Generate a key:
 `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`.
@@ -773,7 +785,9 @@ The detailed gap analysis and phased plan live in **§14**. What remains:
    Both require approval (new dependencies).
 4. **Sprint management UI** — the API now supports sprint update/delete and moving stories between
    sprints (Phase 1); the UI still lacks those controls.
-5. **Google Calendar sync** — OAuth + token storage + two-way sync.
+5. **Google Calendar sync** — two-way sync is implemented (link, pull/push, sync token, delete
+   propagation, background sync). Remaining: per-user time zones, Google push notifications, and
+   all-day events.
 6. **Session maintenance** — periodic cleanup of expired sessions; logout-all-devices.
 7. **Rate limiting** on auth endpoints; stricter CSRF (`Origin` checks).
 8. **Accessibility** — keyboard-accessible kanban movement, modal focus trap.
@@ -837,6 +851,13 @@ The detailed gap analysis and phased plan live in **§14**. What remains:
   repository) and `GET /github/projects/:projectId/branches`; the All-projects view has an
   **Add project** modal with a repository search, and the story branch field is now a searchable
   branch picker (in both the create-story form and the story detail modal).
+- **Multi-user repository linking**: `GithubRepository` now carries `userId` and is unique per
+  `[userId, repoId]` (migration `20260930210000_scope_github_repository_to_user`), so different
+  users can link the same GitHub repository while the same user cannot link it twice.
+- **Google Calendar sync**: OAuth account linking (encrypted tokens + refresh), two-way sync with
+  incremental `syncToken` (pull + push, local-wins on conflicts), delete propagation, a manual
+  `POST /calendar/google/sync`, a background interval, and a Calendar sync bar in the SPA.
+  Migration `20260930220000_google_calendar_sync`.
 
 ---
 
@@ -903,6 +924,9 @@ These are deliberately documented so future work does not rediscover them.
 - **`Story.branch` unique per project**; the API dedupes only auto-generated names. A user-supplied
   duplicate branch will conflict at the DB level.
 - **Ownership is enforced in services** (`ownerId`), not at the DB. Unauthorized IDs return 404.
+- **Repository links are scoped per user** (`GithubRepository.userId` + `@@unique([userId, repoId])`):
+  different users can each link the same GitHub repository; the same user cannot link one repo to
+  two of their projects (that returns `409`).
 - **`Commit` rows are never pruned**; removing a commit upstream leaves the local row.
 - **`completedAt` uses UTC midnight** via `startOfToday()`.
 
@@ -943,6 +967,23 @@ These are deliberately documented so future work does not rediscover them.
   they can drift. A shared types package is future work.
 - **The root `src/`, `tests/`, `evals/` are harness tooling**, not the app — do not confuse them with
   the product.
+
+---
+
+## 13.6 Google Calendar (blindspots)
+
+- **Local wins on conflicts**: pulled Google changes never overwrite events created in Octocode; if
+  an event is edited in both places, the Octocode copy is kept and re-pushed on the next create.
+- **Edits to already-pushed local events are not mirrored** to Google (only new local events are
+  pushed). Editing in Google then pulling also does not change the local copy (by design).
+- **All-day events are skipped** on pull (Octocode models a date + start time only).
+- **One time zone** (`GOOGLE_CALENDAR_TIME_ZONE`, default `UTC`) is used when creating events;
+  per-user time zones and DST are not modeled.
+- **Pulled events use the wall-clock time** from Google's `dateTime` string (no timezone conversion).
+- **Background sync is per process** (an interval in `server.ts`); a multi-instance deployment would
+  sync multiple times per interval. No Google push notifications (`events.watch`) yet.
+- **Google scopes are sensitive**: a public deployment needs Google OAuth verification; during
+  testing, add yourself as a test user on the OAuth consent screen.
 
 ---
 
@@ -992,7 +1033,7 @@ phased plan. **Phases 1–3 are implemented** (see §11); Phases 4–5 are outst
 | Gap | Status |
 | --- | --- |
 | GitHub App + webhooks + automatic commit sync | ❌ Phase 4 |
-| Google Calendar two-way sync | ❌ Phase 4 |
+| Google Calendar two-way sync | ✅ Phase 4 (pull + push, sync token, scheduled sync) |
 | Repo/commit pagination (GitHub API) | ❌ Phase 4 |
 
 #### D. Operations / quality
@@ -1049,7 +1090,9 @@ phased plan. **Phases 1–3 are implemented** (see §11); Phases 4–5 are outst
 
 12. GitHub App migration: installation tokens, webhook endpoint + signature verification,
     `GithubWebhookEvent` idempotency, webhook-driven commit sync; paginate repos/commits.
-13. Google Calendar sync (OAuth + reconcile) — its own project.
+13. Google Calendar sync — ✅ done: OAuth linking, token refresh, two-way sync with `syncToken`,
+    delete propagation, background interval, and a SPA sync bar. Remaining: per-user time zones,
+    push notifications, and all-day events (see §13.6).
 
 **Phase 5 — Docs — ❌ not started**
 

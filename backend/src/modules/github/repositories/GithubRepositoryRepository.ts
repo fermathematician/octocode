@@ -5,6 +5,7 @@ import type {
 
 export interface SaveGithubRepositoryData {
   projectId: string;
+  userId: string;
   repoId: string;
   owner: string;
   name: string;

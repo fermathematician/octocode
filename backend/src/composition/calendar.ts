@@ -23,7 +23,12 @@ const update = new UpdateCalendarEventController(
 );
 
 const remove = new DeleteCalendarEventController(
-  new DeleteCalendarEventService(shared.calendarEventRepository),
+  new DeleteCalendarEventService(
+    shared.calendarEventRepository,
+    shared.googleCalendarClient,
+    shared.googleTokenProvider,
+    shared.calendarSyncStateRepository,
+  ),
 );
 
 export const calendarRouter = createCalendarRouter(

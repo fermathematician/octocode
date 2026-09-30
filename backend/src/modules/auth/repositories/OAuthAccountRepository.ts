@@ -25,6 +25,13 @@ export interface SaveOAuthAccountData {
   expiresAt: Date | null;
 }
 
+export interface UpdateOAuthTokensData {
+  accessToken: string;
+  refreshToken: string | null;
+  tokenType: string | null;
+  expiresAt: Date | null;
+}
+
 export interface OAuthAccountRepository {
   findByProviderAccount(
     provider: OAuthProvider,
@@ -35,6 +42,8 @@ export interface OAuthAccountRepository {
     provider: OAuthProvider,
   ): Promise<OAuthAccountRecord | null>;
   save(data: SaveOAuthAccountData): Promise<OAuthAccount>;
+  updateTokens(id: string, data: UpdateOAuthTokensData): Promise<void>;
+  deleteByUser(userId: string, provider: OAuthProvider): Promise<void>;
 }
 
 export class PrismaOAuthAccountRepository implements OAuthAccountRepository {
@@ -80,6 +89,20 @@ export class PrismaOAuthAccountRepository implements OAuthAccountRepository {
         expiresAt: data.expiresAt,
       },
     });
+  }
+
+  async updateTokens(
+    id: string,
+    data: UpdateOAuthTokensData,
+  ): Promise<void> {
+    await this.prisma.oAuthAccount.update({ where: { id }, data });
+  }
+
+  async deleteByUser(
+    userId: string,
+    provider: OAuthProvider,
+  ): Promise<void> {
+    await this.prisma.oAuthAccount.deleteMany({ where: { userId, provider } });
   }
 }
 
