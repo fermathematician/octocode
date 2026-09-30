@@ -56,19 +56,17 @@ export function StoryDetailModal({
           <div className={styles.property}>
             <dt>Branch</dt>
             <dd>
-              <code className={styles.branch}>
-                {story.branch ?? "No branch assigned"}
-              </code>
+              <code className={styles.branch}>{story.branch}</code>
             </dd>
           </div>
         </dl>
 
         <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>Link branch</h3>
+          <h3 className={styles.sectionTitle}>Branch</h3>
           <BranchForm
-            key={story.branch ?? "empty-branch"}
-            initialBranch={story.branch ?? ""}
-            submitLabel={story.branch ? "Update branch" : "Link branch"}
+            key={story.branch}
+            initialBranch={story.branch}
+            submitLabel="Update branch"
             onSubmit={onAssignBranch}
           />
         </section>

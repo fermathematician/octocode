@@ -28,6 +28,15 @@
   font-weight: 600;
 }
 
+.branch {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.7rem;
+  color: var(--color-accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .meta {
   display: flex;
   flex-wrap: wrap;

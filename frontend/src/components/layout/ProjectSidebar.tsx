@@ -1,5 +1,5 @@
 import type { Project } from "../../domain/types";
-import { GENERAL_VIEWS, type GeneralViewId, type ScreenId } from "./views";
+import { GENERAL_VIEW_GROUPS, type GeneralViewId, type ScreenId } from "./views";
 import styles from "./ProjectSidebar.module.css";
 
 interface ProjectSidebarProps {
@@ -24,25 +24,31 @@ export function ProjectSidebar({
         <span className={styles.brandName}>DevBoard</span>
       </div>
 
-      <nav aria-label="Workspace" className={styles.nav}>
-        <p className={styles.sectionLabel}>Board</p>
-        <ul className={styles.list}>
-          {GENERAL_VIEWS.map((view) => (
-            <li key={view.id}>
-              <button
-                type="button"
-                className={`${styles.item} ${
-                  activeScreen === view.id ? styles.itemActive : ""
-                }`}
-                onClick={() => onSelectScreen(view.id)}
-                aria-current={activeScreen === view.id ? "page" : undefined}
-              >
-                {view.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      {GENERAL_VIEW_GROUPS.map((group) => (
+        <nav
+          key={group.label}
+          aria-label={group.label}
+          className={styles.nav}
+        >
+          <p className={styles.sectionLabel}>{group.label}</p>
+          <ul className={styles.list}>
+            {group.views.map((view) => (
+              <li key={view.id}>
+                <button
+                  type="button"
+                  className={`${styles.item} ${
+                    activeScreen === view.id ? styles.itemActive : ""
+                  }`}
+                  onClick={() => onSelectScreen(view.id)}
+                  aria-current={activeScreen === view.id ? "page" : undefined}
+                >
+                  {view.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ))}
 
       <nav aria-label="Projects" className={styles.nav}>
         <p className={styles.sectionLabel}>Projects</p>

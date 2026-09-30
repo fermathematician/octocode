@@ -13,6 +13,34 @@ export interface CreateStoryInput {
   priority: StoryPriority;
 }
 
+function slugifyTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 40)
+    .replace(/^-+|-+$/g, "");
+}
+
+function buildBranchName(title: string): string {
+  const slug = slugifyTitle(title) || "story";
+  const base = `feat/${slug}`;
+
+  let candidate = base;
+  let counter = 2;
+
+  while (db.stories.some((story) => story.branch === candidate)) {
+    candidate = `${base}-${counter}`;
+    counter += 1;
+  }
+
+  return candidate;
+}
+
 export async function getStories(): Promise<Story[]> {
   await delay();
   return db.stories.map((story) => ({ ...story, commits: [...story.commits] }));
@@ -39,7 +67,7 @@ export async function createStory(input: CreateStoryInput): Promise<Story> {
     storyPoints: input.storyPoints,
     priority: input.priority,
     status: "backlog",
-    branch: null,
+    branch: buildBranchName(input.title),
     commits: [],
     createdAt: new Date().toISOString(),
     completedAt: null,

@@ -8,6 +8,7 @@ import { CalendarPage } from "./pages/calendar";
 import { GraphPage } from "./pages/graph";
 import { KanbanPage } from "./pages/kanban";
 import { ProjectPage } from "./pages/project";
+import { TodayPage } from "./pages/today";
 import styles from "./App.module.css";
 
 export function App() {
@@ -60,6 +61,8 @@ export function App() {
 
   function renderScreen() {
     switch (screen) {
+      case "today":
+        return <TodayPage />;
       case "kanban":
         return <KanbanPage />;
       case "graph":

@@ -43,6 +43,9 @@ export function KanbanCard({
         <span className={styles.project}>{projectName}</span>
       ) : null}
       <h3 className={styles.title}>{story.title}</h3>
+      <span className={styles.branch} title={story.branch}>
+        {story.branch}
+      </span>
       <div className={styles.meta}>
         <Badge tone="accent">{story.storyPoints} pts</Badge>
         <Badge tone={PRIORITY_TONES[story.priority]}>

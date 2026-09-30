@@ -36,7 +36,7 @@ export interface Story {
   storyPoints: StoryPoints;
   priority: StoryPriority;
   status: StoryStatus;
-  branch: string | null;
+  branch: string;
   commits: Commit[];
   createdAt: string;
   completedAt: string | null;

@@ -39,11 +39,9 @@ export function StoryCard({ story, projectName, onSelect }: StoryCardProps) {
           {STORY_STATUS_LABELS[story.status]}
         </span>
       </span>
-      {story.branch ? (
-        <span className={styles.branch} title={story.branch}>
-          {story.branch}
-        </span>
-      ) : null}
+      <span className={styles.branch} title={story.branch}>
+        {story.branch}
+      </span>
     </button>
   );
 }
