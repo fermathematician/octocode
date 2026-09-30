@@ -1,3 +1,4 @@
+import type { DragEvent } from "react";
 import { Badge, type BadgeTone } from "../../../components/shared/Badge/Badge";
 import { STORY_PRIORITY_LABELS } from "../../../domain/story";
 import type { Story } from "../../../domain/types";
@@ -27,8 +28,17 @@ export function KanbanCard({
   onMoveBackward,
   onMoveForward,
 }: KanbanCardProps) {
+  function handleDragStart(event: DragEvent<HTMLElement>) {
+    event.dataTransfer.setData("text/plain", story.id);
+    event.dataTransfer.effectAllowed = "move";
+  }
+
   return (
-    <article className={styles.card}>
+    <article
+      className={styles.card}
+      draggable
+      onDragStart={handleDragStart}
+    >
       {projectName ? (
         <span className={styles.project}>{projectName}</span>
       ) : null}

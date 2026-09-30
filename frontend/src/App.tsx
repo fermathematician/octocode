@@ -1,20 +1,20 @@
 import { useEffect, useState } from "react";
 import { getProjects } from "./api/projects";
 import { AppShell } from "./components/layout/AppShell";
-import type { ViewId } from "./components/layout/views";
+import type { GeneralViewId, ScreenId } from "./components/layout/views";
 import { Spinner } from "./components/shared/Spinner/Spinner";
 import type { Project } from "./domain/types";
-import { BacklogPage } from "./pages/backlog";
 import { CalendarPage } from "./pages/calendar";
-import { ProgressPage } from "./pages/progress";
-import { SprintPage } from "./pages/sprint";
+import { GraphPage } from "./pages/graph";
+import { KanbanPage } from "./pages/kanban";
+import { ProjectPage } from "./pages/project";
 import styles from "./App.module.css";
 
 export function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
+  const [screen, setScreen] = useState<ScreenId>("kanban");
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<ViewId>("backlog");
 
   useEffect(() => {
     let cancelled = false;
@@ -41,6 +41,15 @@ export function App() {
     };
   }, []);
 
+  function selectScreen(viewId: GeneralViewId) {
+    setScreen(viewId);
+  }
+
+  function selectProject(projectId: string | null) {
+    setActiveProjectId(projectId);
+    setScreen("project");
+  }
+
   if (projectsLoading) {
     return (
       <div className={styles.loading}>
@@ -49,23 +58,21 @@ export function App() {
     );
   }
 
-  function renderView() {
-    switch (activeView) {
-      case "backlog":
-        return (
-          <BacklogPage
-            projectId={activeProjectId}
-            projects={projects}
-            onSelectProject={setActiveProjectId}
-          />
-        );
-      case "sprint":
-        return <SprintPage projectId={activeProjectId} projects={projects} />;
+  function renderScreen() {
+    switch (screen) {
+      case "kanban":
+        return <KanbanPage />;
+      case "graph":
+        return <GraphPage />;
       case "calendar":
         return <CalendarPage />;
-      case "progress":
+      case "project":
         return (
-          <ProgressPage projectId={activeProjectId} projects={projects} />
+          <ProjectPage
+            projectId={activeProjectId}
+            projects={projects}
+            onSelectProject={selectProject}
+          />
         );
     }
   }
@@ -73,12 +80,12 @@ export function App() {
   return (
     <AppShell
       projects={projects}
+      activeScreen={screen}
       activeProjectId={activeProjectId}
-      onSelectProject={setActiveProjectId}
-      activeView={activeView}
-      onSelectView={setActiveView}
+      onSelectScreen={selectScreen}
+      onSelectProject={selectProject}
     >
-      {renderView()}
+      {renderScreen()}
     </AppShell>
   );
 }

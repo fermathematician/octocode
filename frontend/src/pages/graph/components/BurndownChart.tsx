@@ -1,4 +1,4 @@
-import type { BurndownPoint } from "../hooks/useSprint";
+import type { BurndownPoint } from "../../../domain/sprint";
 import styles from "./BurndownChart.module.css";
 
 interface BurndownChartProps {
@@ -92,11 +92,7 @@ export function BurndownChart({ points, totalPoints }: BurndownChartProps) {
           </text>
         ))}
 
-        <text
-          x={PADDING.left}
-          y={12}
-          className={styles.axisLabel}
-        >
+        <text x={PADDING.left} y={12} className={styles.axisLabel}>
           points remaining
         </text>
       </svg>

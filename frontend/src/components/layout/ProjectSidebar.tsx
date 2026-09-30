@@ -1,15 +1,20 @@
 import type { Project } from "../../domain/types";
+import { GENERAL_VIEWS, type GeneralViewId, type ScreenId } from "./views";
 import styles from "./ProjectSidebar.module.css";
 
 interface ProjectSidebarProps {
   projects: Project[];
+  activeScreen: ScreenId;
   activeProjectId: string | null;
+  onSelectScreen: (viewId: GeneralViewId) => void;
   onSelectProject: (projectId: string | null) => void;
 }
 
 export function ProjectSidebar({
   projects,
+  activeScreen,
   activeProjectId,
+  onSelectScreen,
   onSelectProject,
 }: ProjectSidebarProps) {
   return (
@@ -19,45 +24,76 @@ export function ProjectSidebar({
         <span className={styles.brandName}>DevBoard</span>
       </div>
 
+      <nav aria-label="Workspace" className={styles.nav}>
+        <p className={styles.sectionLabel}>Board</p>
+        <ul className={styles.list}>
+          {GENERAL_VIEWS.map((view) => (
+            <li key={view.id}>
+              <button
+                type="button"
+                className={`${styles.item} ${
+                  activeScreen === view.id ? styles.itemActive : ""
+                }`}
+                onClick={() => onSelectScreen(view.id)}
+                aria-current={activeScreen === view.id ? "page" : undefined}
+              >
+                {view.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
       <nav aria-label="Projects" className={styles.nav}>
         <p className={styles.sectionLabel}>Projects</p>
         <button
           type="button"
           className={`${styles.item} ${
-            activeProjectId === null ? styles.itemActive : ""
+            activeScreen === "project" && activeProjectId === null
+              ? styles.itemActive
+              : ""
           }`}
           onClick={() => onSelectProject(null)}
-          aria-current={activeProjectId === null ? "true" : undefined}
+          aria-current={
+            activeScreen === "project" && activeProjectId === null
+              ? "page"
+              : undefined
+          }
         >
           <span className={styles.dotAll} aria-hidden="true" />
           All projects
         </button>
 
         <ul className={styles.list}>
-          {projects.map((project) => (
-            <li key={project.id}>
-              <button
-                type="button"
-                className={`${styles.item} ${
-                  activeProjectId === project.id ? styles.itemActive : ""
-                }`}
-                onClick={() => onSelectProject(project.id)}
-                aria-current={activeProjectId === project.id ? "true" : undefined}
-              >
-                <span
-                  className={styles.dot}
-                  style={{ backgroundColor: project.color }}
-                  aria-hidden="true"
-                />
-                <span className={styles.itemText}>
-                  <span className={styles.itemName}>{project.name}</span>
-                  <span className={styles.itemMeta}>
-                    {project.githubAccount}/{project.repository}
+          {projects.map((project) => {
+            const isActive =
+              activeScreen === "project" && activeProjectId === project.id;
+
+            return (
+              <li key={project.id}>
+                <button
+                  type="button"
+                  className={`${styles.item} ${
+                    isActive ? styles.itemActive : ""
+                  }`}
+                  onClick={() => onSelectProject(project.id)}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  <span
+                    className={styles.dot}
+                    style={{ backgroundColor: project.color }}
+                    aria-hidden="true"
+                  />
+                  <span className={styles.itemText}>
+                    <span className={styles.itemName}>{project.name}</span>
+                    <span className={styles.itemMeta}>
+                      {project.githubAccount}/{project.repository}
+                    </span>
                   </span>
-                </span>
-              </button>
-            </li>
-          ))}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </nav>
     </aside>

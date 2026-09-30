@@ -13,19 +13,20 @@ export function SprintHeader({
   totalPoints,
   remainingPoints,
 }: SprintHeaderProps) {
-  const title =
-    sprints.length === 1 ? sprints[0].name : "All active sprints";
+  const title = sprints.length === 1 ? sprints[0].name : "All active sprints";
   const completedPoints = totalPoints - remainingPoints;
 
   return (
     <header className={styles.header}>
       <div>
-        <h1 className={styles.title}>{title}</h1>
+        <h2 className={styles.title}>{title}</h2>
         <p className={styles.dates}>
           {sprints.length === 0
             ? "No sprint is currently active."
             : sprints
-                .map((sprint) => formatDateRange(sprint.startDate, sprint.endDate))
+                .map((sprint) =>
+                  formatDateRange(sprint.startDate, sprint.endDate),
+                )
                 .join(" · ")}
         </p>
       </div>

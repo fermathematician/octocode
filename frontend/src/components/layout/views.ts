@@ -1,13 +1,14 @@
-export type ViewId = "backlog" | "sprint" | "calendar" | "progress";
+export type GeneralViewId = "kanban" | "graph" | "calendar";
 
-export interface ViewDefinition {
-  id: ViewId;
+export interface GeneralViewDefinition {
+  id: GeneralViewId;
   label: string;
 }
 
-export const VIEWS: ViewDefinition[] = [
-  { id: "backlog", label: "Backlog" },
-  { id: "sprint", label: "Sprint" },
+export const GENERAL_VIEWS: GeneralViewDefinition[] = [
+  { id: "kanban", label: "Kanban" },
+  { id: "graph", label: "Graph" },
   { id: "calendar", label: "Calendar" },
-  { id: "progress", label: "Progress" },
 ];
+
+export type ScreenId = GeneralViewId | "project";

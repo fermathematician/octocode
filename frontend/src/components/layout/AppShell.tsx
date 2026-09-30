@@ -1,49 +1,36 @@
 import type { ReactNode } from "react";
 import type { Project } from "../../domain/types";
 import { ProjectSidebar } from "./ProjectSidebar";
-import { VIEWS, type ViewId } from "./views";
+import type { GeneralViewId, ScreenId } from "./views";
 import styles from "./AppShell.module.css";
 
 interface AppShellProps {
   projects: Project[];
+  activeScreen: ScreenId;
   activeProjectId: string | null;
+  onSelectScreen: (viewId: GeneralViewId) => void;
   onSelectProject: (projectId: string | null) => void;
-  activeView: ViewId;
-  onSelectView: (viewId: ViewId) => void;
   children: ReactNode;
 }
 
 export function AppShell({
   projects,
+  activeScreen,
   activeProjectId,
+  onSelectScreen,
   onSelectProject,
-  activeView,
-  onSelectView,
   children,
 }: AppShellProps) {
   return (
     <div className={styles.shell}>
       <ProjectSidebar
         projects={projects}
+        activeScreen={activeScreen}
         activeProjectId={activeProjectId}
+        onSelectScreen={onSelectScreen}
         onSelectProject={onSelectProject}
       />
       <div className={styles.main}>
-        <nav className={styles.nav} aria-label="Views">
-          {VIEWS.map((view) => (
-            <button
-              key={view.id}
-              type="button"
-              className={`${styles.navItem} ${
-                activeView === view.id ? styles.navItemActive : ""
-              }`}
-              onClick={() => onSelectView(view.id)}
-              aria-current={activeView === view.id ? "page" : undefined}
-            >
-              {view.label}
-            </button>
-          ))}
-        </nav>
         <main className={styles.content}>{children}</main>
       </div>
     </div>

@@ -8,6 +8,12 @@
   background-color: var(--color-surface-muted);
   border-radius: var(--radius-md);
   padding: var(--space-3);
+  border: 1px dashed transparent;
+  transition: border-color 0.15s ease;
+}
+
+.columnOver {
+  border-color: var(--color-primary);
 }
 
 .header {
@@ -38,4 +44,5 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  min-height: 24px;
 }

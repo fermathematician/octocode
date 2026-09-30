@@ -1,5 +1,5 @@
 import type { StoryStatus } from "../../../domain/types";
-import type { KanbanColumnData } from "../hooks/useSprint";
+import type { KanbanColumnData } from "../hooks/useKanban";
 import { KanbanColumn } from "./KanbanColumn";
 import styles from "./KanbanBoard.module.css";
 

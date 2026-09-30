@@ -1,5 +1,10 @@
+import { useState, type DragEvent } from "react";
 import { STORY_STATUS_LABELS } from "../../../domain/story";
-import { STORY_STATUSES, type Story, type StoryStatus } from "../../../domain/types";
+import {
+  STORY_STATUSES,
+  type Story,
+  type StoryStatus,
+} from "../../../domain/types";
 import { KanbanCard } from "./KanbanCard";
 import styles from "./KanbanColumn.module.css";
 
@@ -16,12 +21,40 @@ export function KanbanColumn({
   projectNames,
   onMove,
 }: KanbanColumnProps) {
+  const [isDragOver, setIsDragOver] = useState(false);
   const statusIndex = STORY_STATUSES.indexOf(status);
   const previousStatus = STORY_STATUSES[statusIndex - 1];
   const nextStatus = STORY_STATUSES[statusIndex + 1];
 
+  function handleDragOver(event: DragEvent<HTMLElement>) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setIsDragOver(true);
+  }
+
+  function handleDragLeave() {
+    setIsDragOver(false);
+  }
+
+  function handleDrop(event: DragEvent<HTMLElement>) {
+    event.preventDefault();
+    setIsDragOver(false);
+
+    const storyId = event.dataTransfer.getData("text/plain");
+
+    if (storyId) {
+      onMove(storyId, status);
+    }
+  }
+
   return (
-    <section className={styles.column} aria-label={STORY_STATUS_LABELS[status]}>
+    <section
+      className={`${styles.column} ${isDragOver ? styles.columnOver : ""}`}
+      aria-label={STORY_STATUS_LABELS[status]}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <header className={styles.header}>
         <h2 className={styles.title}>{STORY_STATUS_LABELS[status]}</h2>
         <span className={styles.count}>{stories.length}</span>
