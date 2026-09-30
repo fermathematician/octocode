@@ -61,3 +61,45 @@
 .button:hover {
   background-color: #000000;
 }
+
+.devForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  margin-top: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.devNote {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.devLabel {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.devInput {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  color: var(--color-text);
+  background-color: var(--color-surface);
+}
+
+.devInput:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.devForm .button {
+  margin-top: 0;
+}

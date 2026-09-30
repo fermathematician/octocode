@@ -318,7 +318,8 @@ npm run preview        # serve the production build
 ```
 
 **The frontend now requires the backend.** Start the backend first (§6.2). The API base URL comes
-from `VITE_API_URL` (default `http://localhost:3333`).
+from `VITE_API_URL` (default `http://localhost:3333`); `frontend/.env.example` documents
+`VITE_API_URL` and `VITE_DEV_LOGIN` (dev-only token login).
 
 ### 5.3 Navigation model
 
@@ -552,6 +553,7 @@ All routes except `/health` and the two OAuth endpoints require a valid session 
 | GET | `/auth/me` | required | Current user |
 | POST | `/auth/logout` | public | Revoke session, clear cookie → 204 |
 | POST | `/auth/logout-all` | required | Revoke all of the actor's sessions → 204 |
+| POST | `/auth/dev-token` | dev-only | Sign in with a GitHub personal access token; `404` unless `ALLOW_DEV_TOKEN_LOGIN=true` |
 | GET | `/projects?limit=&cursor=` | required | List the actor's projects (paginated) |
 | POST | `/projects` | required | Create project `{ name, color? }` |
 | GET | `/projects/:projectId` | required | Get one project (404 if not owned) |
@@ -644,6 +646,7 @@ Frontend LoginScreen
 | `RATE_LIMIT_WINDOW_MS` | no | `60000` | Rate-limit window |
 | `RATE_LIMIT_MAX` | no | `300` | Max requests per window per IP |
 | `RATE_LIMIT_AUTH_MAX` | no | `20` | Max `/auth/*` requests per window per IP |
+| `ALLOW_DEV_TOKEN_LOGIN` | no | `false` | Dev-only PAT sign-in (`POST /auth/dev-token`); **never enable in production** |
 
 Generate a key:
 `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`.
@@ -821,9 +824,12 @@ The detailed gap analysis and phased plan live in **§14**. What remains:
 - **Backend Phase 2**: validated environment config, graceful shutdown, `/ready` DB readiness probe,
   structured JSON request logs with request IDs, in-memory rate limiting (global + strict `/auth`),
   an `Origin` check on state-changing requests, periodic session cleanup, and `POST /auth/logout-all`.
-- **Backend Phase 3 (this update)**: seed script + `docker-compose.yml` for local Postgres, and a
-  dependency-free test suite (Node's `node:test` + `tsx`) covering services, middleware and HTTP
-  behavior, plus a CI workflow. Gap analysis and remaining phases documented in §14.
+- **Backend Phase 3**: seed script + `docker-compose.yml` for local Postgres, and a dependency-free
+  test suite (Node's `node:test` + `tsx`) covering services, middleware and HTTP behavior, plus a CI
+  workflow. Gap analysis and remaining phases documented in §14.
+- **Dev token sign-in**: optional `POST /auth/dev-token` (gated by `ALLOW_DEV_TOKEN_LOGIN`) plus a
+  `VITE_DEV_LOGIN` form on the login screen, so a GitHub personal access token can be used instead
+  of configuring an OAuth App. GitHub sign-in logic extracted into `GithubSignInService`.
 
 ---
 
@@ -865,6 +871,10 @@ These are deliberately documented so future work does not rediscover them.
   behind a reverse proxy (not yet wired).
 - **CSRF**: OAuth `state` check plus `SameSite=Lax` plus an `Origin` check on state-changing
   requests. No double-submit token.
+- **Dev PAT sign-in** (`POST /auth/dev-token`) is **disabled by default** and only exists to skip
+  the OAuth App setup during development. When enabled, anyone who possesses a GitHub personal
+  access token can establish a session as that user; it must **never** be enabled in production.
+  GitHub does not support username/password authentication for third-party apps.
 - **`TOKEN_ENCRYPTION_KEY` is required at boot.** The app fails fast if it is missing/invalid; key
   rotation is not implemented, and rotating it makes stored tokens undecryptable.
 - **`.env` currently contains a dev-generated encryption key.** It is gitignored. Do not reuse it in

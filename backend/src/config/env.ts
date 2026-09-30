@@ -80,6 +80,8 @@ export const env = {
   frontendUrl: readUrl("FRONTEND_URL", "http://localhost:5173"),
   corsOrigin: readUrl("CORS_ORIGIN", "http://localhost:5173"),
   tokenEncryptionKey: readEncryptionKey(),
+  // Dev-only: allow signing in with a GitHub personal access token (no OAuth App).
+  allowDevTokenLogin: readBoolean("ALLOW_DEV_TOKEN_LOGIN", false),
   github: {
     clientId: readOptional("GITHUB_CLIENT_ID", ""),
     clientSecret: readOptional("GITHUB_CLIENT_SECRET", ""),

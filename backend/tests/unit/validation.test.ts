@@ -16,6 +16,7 @@ import {
   parseCreateCalendarEventBody,
   parseUpdateCalendarEventBody,
 } from "../../src/modules/calendar/validation/calendar.schema.js";
+import { parseDevTokenBody } from "../../src/modules/auth/validation/dev-token.schema.js";
 
 describe("story validation", () => {
   it("maps lowercase priority to the enum and trims the title", () => {
@@ -156,5 +157,17 @@ describe("calendar validation", () => {
 
   it("requires at least one update field", () => {
     assert.throws(() => parseUpdateCalendarEventBody({}), ValidationError);
+  });
+});
+
+describe("dev token validation", () => {
+  it("trims and returns the token", () => {
+    assert.deepEqual(parseDevTokenBody({ token: "  ghp_x  " }), {
+      token: "ghp_x",
+    });
+  });
+
+  it("rejects a missing token", () => {
+    assert.throws(() => parseDevTokenBody({}), ValidationError);
   });
 });

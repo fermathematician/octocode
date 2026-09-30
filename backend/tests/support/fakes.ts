@@ -2,11 +2,18 @@ import {
   StoryPriority,
   StoryStatus,
   type GithubRepository,
+  type OAuthAccount,
+  type OAuthProvider,
   type Project,
   type Sprint,
   type Story,
   type User,
 } from "../../src/generated/prisma/client.js";
+import type {
+  OAuthAccountRecord,
+  OAuthAccountRepository,
+  SaveOAuthAccountData,
+} from "../../src/modules/auth/repositories/OAuthAccountRepository.js";
 import type {
   UserProfileData,
   UserRepository,
@@ -553,4 +560,77 @@ export class InMemoryGithubRepositoryRepository
       repository.lastSyncedAt = syncedAt;
     }
   }
+}
+
+export class InMemoryOAuthAccountRepository
+  implements OAuthAccountRepository
+{
+  private accounts: Array<SaveOAuthAccountData & { id: string }> = [];
+
+  async findByProviderAccount(
+    provider: OAuthProvider,
+    providerAccountId: string,
+  ): Promise<OAuthAccountRecord | null> {
+    const found = this.accounts.find(
+      (account) =>
+        account.provider === provider &&
+        account.providerAccountId === providerAccountId,
+    );
+
+    return found ? toRecord(found) : null;
+  }
+
+  async findByUser(
+    userId: string,
+    provider: OAuthProvider,
+  ): Promise<OAuthAccountRecord | null> {
+    const found = this.accounts.find(
+      (account) => account.userId === userId && account.provider === provider,
+    );
+
+    return found ? toRecord(found) : null;
+  }
+
+  async save(data: SaveOAuthAccountData): Promise<OAuthAccount> {
+    const existing = this.accounts.find(
+      (account) =>
+        account.provider === data.provider &&
+        account.providerAccountId === data.providerAccountId,
+    );
+
+    if (existing) {
+      Object.assign(existing, data);
+      return toModel(existing);
+    }
+
+    const stored = { id: `oauth-${this.accounts.length + 1}`, ...data };
+    this.accounts.push(stored);
+    return toModel(stored);
+  }
+}
+
+function toRecord(
+  account: SaveOAuthAccountData & { id: string },
+): OAuthAccountRecord {
+  return {
+    id: account.id,
+    userId: account.userId,
+    provider: account.provider,
+    providerAccountId: account.providerAccountId,
+    accessToken: account.accessToken,
+    refreshToken: account.refreshToken,
+    expiresAt: account.expiresAt,
+  };
+}
+
+function toModel(account: SaveOAuthAccountData & { id: string }): OAuthAccount {
+  const now = new Date();
+
+  return {
+    ...toRecord(account),
+    tokenType: account.tokenType,
+    scope: account.scope,
+    createdAt: now,
+    updatedAt: now,
+  };
 }
