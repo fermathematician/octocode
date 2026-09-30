@@ -66,3 +66,11 @@ export interface CalendarEvent {
   startTime: string;
   notes: string;
 }
+
+export interface CurrentUser {
+  id: string;
+  login: string;
+  name: string | null;
+  email: string | null;
+  avatarUrl: string | null;
+}

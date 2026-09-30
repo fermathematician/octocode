@@ -1,7 +1,7 @@
 import type { Sprint } from "../domain/types";
-import { db, delay } from "./db";
+import { apiFetch } from "./http";
 
-export async function getSprints(): Promise<Sprint[]> {
-  await delay();
-  return db.sprints.map((sprint) => ({ ...sprint }));
+export function getSprints(projectId?: string): Promise<Sprint[]> {
+  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
+  return apiFetch<Sprint[]>(`/sprints${query}`);
 }

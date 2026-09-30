@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { getProjects } from "./api/projects";
+import { LoginScreen } from "./auth/LoginScreen";
+import { useCurrentUser } from "./auth/useCurrentUser";
 import { AppShell } from "./components/layout/AppShell";
 import type { GeneralViewId, ScreenId } from "./components/layout/views";
 import { Spinner } from "./components/shared/Spinner/Spinner";
@@ -12,35 +14,42 @@ import { TodayPage } from "./pages/today";
 import styles from "./App.module.css";
 
 export function App() {
+  const { user, loading: userLoading, logout } = useCurrentUser();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [screen, setScreen] = useState<ScreenId>("kanban");
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!user) {
+      return;
+    }
+
     let cancelled = false;
 
-    getProjects()
-      .then((loaded) => {
+    async function load() {
+      try {
+        const loaded = await getProjects();
         if (!cancelled) {
           setProjects(loaded);
         }
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) {
           setProjects([]);
         }
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) {
           setProjectsLoading(false);
         }
-      });
+      }
+    }
+
+    void load();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [user]);
 
   function selectScreen(viewId: GeneralViewId) {
     setScreen(viewId);
@@ -49,6 +58,18 @@ export function App() {
   function selectProject(projectId: string | null) {
     setActiveProjectId(projectId);
     setScreen("project");
+  }
+
+  if (userLoading) {
+    return (
+      <div className={styles.loading}>
+        <Spinner label="Loading workspace…" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginScreen />;
   }
 
   if (projectsLoading) {
@@ -83,10 +104,12 @@ export function App() {
   return (
     <AppShell
       projects={projects}
+      user={user}
       activeScreen={screen}
       activeProjectId={activeProjectId}
       onSelectScreen={selectScreen}
       onSelectProject={selectProject}
+      onLogout={logout}
     >
       {renderScreen()}
     </AppShell>

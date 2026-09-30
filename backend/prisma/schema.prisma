@@ -1,13 +1,200 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
-  output   = "../generated/prisma"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+enum OAuthProvider {
+  GITHUB
+}
+
+enum StoryPriority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum StoryStatus {
+  BACKLOG
+  DESIGN
+  CODE
+  TEST
+  REFACTOR
+}
+
+enum CalendarEventType {
+  REMINDER
+  TASK
+  MEETING
+}
+
+model User {
+  id        String   @id @default(cuid())
+  login     String   @unique
+  name      String?
+  email     String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts       OAuthAccount[]
+  sessions       Session[]
+  projects       Project[]
+  calendarEvents CalendarEvent[]
+}
+
+/// One row per external identity. Token fields hold ciphertext, never plaintext.
+model OAuthAccount {
+  id                String        @id @default(cuid())
+  userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider          OAuthProvider @default(GITHUB)
+  providerAccountId String
+  accessToken       String
+  refreshToken      String?
+  tokenType         String?
+  scope             String
+  expiresAt         DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+/// Opaque session. Only the hash of the cookie token is stored.
+model Session {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  userAgent String?
+  ipAddress String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name      String
+  color     String   @default("#4f46e5")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  repository GithubRepository?
+  sprints    Sprint[]
+  stories    Story[]
+
+  @@index([ownerId])
+}
+
+model GithubRepository {
+  id             String    @id @default(cuid())
+  projectId      String    @unique
+  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  repoId         String    @unique
+  owner          String
+  name           String
+  defaultBranch  String    @default("main")
+  isPrivate      Boolean   @default(false)
+  installationId String?
+  lastSyncedAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  commits Commit[]
+
+  @@unique([owner, name])
+}
+
+model Sprint {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+
+  stories Story[]
+
+  @@index([projectId])
+}
+
+model Story {
+  id          String        @id @default(cuid())
+  projectId   String
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sprintId    String?
+  sprint      Sprint?       @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  title       String
+  storyPoints Int
+  priority    StoryPriority @default(MEDIUM)
+  status      StoryStatus   @default(BACKLOG)
+  branch      String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  completedAt DateTime?
+
+  commits Commit[]
+
+  @@unique([projectId, branch])
+  @@index([projectId])
+  @@index([sprintId])
+  @@index([status])
+}
+
+model Commit {
+  id           String           @id @default(cuid())
+  repositoryId String
+  repository   GithubRepository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  storyId      String?
+  story        Story?           @relation(fields: [storyId], references: [id], onDelete: SetNull)
+  sha          String
+  message      String
+  authorLogin  String?
+  authorName   String?
+  branch       String?
+  committedAt  DateTime
+  url          String?
+  createdAt    DateTime         @default(now())
+
+  @@unique([repositoryId, sha])
+  @@index([storyId])
+}
+
+model CalendarEvent {
+  id        String            @id @default(cuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      CalendarEventType @default(TASK)
+  title     String
+  date      DateTime
+  startTime String
+  notes     String            @default("")
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([userId, date])
+}
+
+/// Idempotency guard for GitHub webhook deliveries.
+model GithubWebhookEvent {
+  id          String    @id @default(cuid())
+  deliveryId  String    @unique
+  event       String
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
 }

@@ -1,21 +1,25 @@
-import type { Project } from "../../domain/types";
+import type { CurrentUser, Project } from "../../domain/types";
 import { GENERAL_VIEW_GROUPS, type GeneralViewId, type ScreenId } from "./views";
 import styles from "./ProjectSidebar.module.css";
 
 interface ProjectSidebarProps {
   projects: Project[];
+  user: CurrentUser;
   activeScreen: ScreenId;
   activeProjectId: string | null;
   onSelectScreen: (viewId: GeneralViewId) => void;
   onSelectProject: (projectId: string | null) => void;
+  onLogout: () => void;
 }
 
 export function ProjectSidebar({
   projects,
+  user,
   activeScreen,
   activeProjectId,
   onSelectScreen,
   onSelectProject,
+  onLogout,
 }: ProjectSidebarProps) {
   return (
     <aside className={styles.sidebar}>
@@ -102,6 +106,23 @@ export function ProjectSidebar({
           })}
         </ul>
       </nav>
+
+      <div className={styles.user}>
+        {user.avatarUrl ? (
+          <img className={styles.avatar} src={user.avatarUrl} alt="" />
+        ) : (
+          <span className={styles.avatarFallback} aria-hidden="true">
+            {user.login.slice(0, 1).toUpperCase()}
+          </span>
+        )}
+        <span className={styles.userText}>
+          <span className={styles.userName}>{user.name ?? user.login}</span>
+          <span className={styles.userLogin}>@{user.login}</span>
+        </span>
+        <button type="button" className={styles.signOut} onClick={onLogout}>
+          Sign out
+        </button>
+      </div>
     </aside>
   );
 }

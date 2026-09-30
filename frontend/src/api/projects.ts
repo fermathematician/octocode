@@ -1,7 +1,6 @@
 import type { Project } from "../domain/types";
-import { db, delay } from "./db";
+import { apiFetch } from "./http";
 
-export async function getProjects(): Promise<Project[]> {
-  await delay();
-  return db.projects.map((project) => ({ ...project }));
+export function getProjects(): Promise<Project[]> {
+  return apiFetch<Project[]>("/projects");
 }

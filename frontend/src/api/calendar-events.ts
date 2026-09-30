@@ -1,5 +1,8 @@
-import type { CalendarEvent, CalendarEventType } from "../domain/types";
-import { createId, db, delay } from "./db";
+import type {
+  CalendarEvent,
+  CalendarEventType,
+} from "../domain/types";
+import { apiFetch } from "./http";
 
 export interface CreateCalendarEventInput {
   type: CalendarEventType;
@@ -8,26 +11,15 @@ export interface CreateCalendarEventInput {
   startTime: string;
 }
 
-export async function getCalendarEvents(): Promise<CalendarEvent[]> {
-  await delay();
-  return db.calendarEvents.map((event) => ({ ...event }));
+export function getCalendarEvents(): Promise<CalendarEvent[]> {
+  return apiFetch<CalendarEvent[]>("/calendar-events");
 }
 
-export async function createCalendarEvent(
+export function createCalendarEvent(
   input: CreateCalendarEventInput,
 ): Promise<CalendarEvent> {
-  await delay();
-
-  const event: CalendarEvent = {
-    id: createId("event"),
-    type: input.type,
-    title: input.title.trim(),
-    date: input.date,
-    startTime: input.startTime,
-    notes: "",
-  };
-
-  db.calendarEvents.push(event);
-
-  return { ...event };
+  return apiFetch<CalendarEvent>("/calendar-events", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
