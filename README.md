@@ -759,32 +759,130 @@ Each sync resolves which branch to read (`SyncStoryCommitsService`): the story b
 unmerged commits, otherwise the repository’s **default branch** (merged or missing branch).
 `SyncCommitsService` skips a failing story instead of aborting the batch.
 
+**When do commits appear?** A story always shows what GitHub can see at sync time — nothing is read
+from your disk. The refresh happens automatically (Kanban/Backlog open, the background interval, or a
+`push` webhook) and on demand with **Sync commits**.
+
+| You did this | What the story shows after a sync |
+| --- | --- |
+| Pushed the branch, it has commits `main` lacks | the branch’s newest 100 commits (its own + the `main` commits it is based on) |
+| Pushed the branch, but it is still identical to `main` (fresh copy) | `main`’s commits — there is nothing unique on the branch yet |
+| Committed **locally without pushing** | nothing new; GitHub does not have those commits |
+| Merged the branch into `main` and pushed `main` | `main`’s commits (merge-aware fallback) |
+| Branch deleted on GitHub | `main`’s commits (compare answers 404) |
+
+So the normal flow works: create the story with its branch, push the branch, commit, push again — the
+commits show up on the next sync. **Pushing is the step that makes commits visible**; a local-only
+branch is listed in the picker (see §6.13) but its story stays empty until the commits are pushed.
+
 ### 6.13 Local branches (git hook)
 
 A hosted backend cannot read your `.git`, so unpushed branches are invisible to the branch picker by
 default. The hook in `scripts/git-hooks/` closes that gap: it runs locally on checkout/commit, lists
 `refs/heads`, and reports them to `POST /github/branches/local`. The API resolves the repository by
 `owner`/`name` (parsed from the remote) and **scoped to the caller**, so the hook never needs the
-project id.
+project id. The backend never touches a filesystem, so this works identically against a local API and
+a hosted one (Render + Neon).
 
-Setup:
+#### Prerequisites
+
+| Requirement | Why | Check |
+| --- | --- | --- |
+| **Node.js ≥ 18** on your `PATH` | the hook runs `node octocode-branch-sync.mjs` (uses global `fetch`); CI/dev use Node 22 | `node --version` |
+| `git` | the script reads `remote get-url` and `for-each-ref refs/heads` | `git --version` |
+| The API reachable **from your machine** | local: `http://localhost:3333` with the backend running; hosted: the public HTTPS URL | `curl -s <api>/auth/me` |
+| The repo **linked to a project** | the API resolves `owner/name` → project; otherwise it answers 404 | Add project modal |
+| `origin` pointing at that same repo | the hook reads `owner`/`name` from `origin` only | `git remote -v` |
+| A valid **session cookie** | the hook authenticates as you | see below |
+
+If `node` is not on `PATH` the hook exits quietly and nothing is recorded (a GUI-launched git client
+may not inherit your shell `PATH`; verify with the verbose run below).
+
+#### 1. Get a session token
+
+Sign in to the app, then open DevTools → **Application** → **Cookies** → the API host → copy the value
+of `octocode_session` (the name is configurable via `SESSION_COOKIE_NAME`). It lasts
+`SESSION_TTL_DAYS` (default 30) — no long-lived API tokens exist yet, so re-run the installer when it
+expires.
+
+#### 2. Run the installer
 
 ```bash
-scripts/git-hooks/install.sh                 # current repo
-scripts/git-hooks/install.sh ~/code/api …    # one or more repos
+scripts/git-hooks/install.sh                  # current repo
+scripts/git-hooks/install.sh ~/code/api …     # one or more repos
 ```
 
-The installer asks for the API URL and the `octocode_session` cookie value (browser → DevTools →
-Application → Cookies), writes `~/.octocode/config.json` (`chmod 600`), installs `post-checkout` and
-`post-commit` hooks that run in the background (git never waits), and then runs the sync once with
-`--verbose` so failures are visible immediately. Re-running it is idempotent.
+It prompts for the API URL (default `http://localhost:3333`) and the token (hidden input), writes
+`~/.octocode/config.json` (`chmod 600`), installs `post-checkout` + `post-commit`, and finishes with a
+**verbose sync** so a misconfiguration is visible immediately. Re-running is idempotent.
 
-- The hook identifies the repository from `origin`; **link the repo to a project first**, otherwise the
-  API answers 404 and the hook stays quiet.
-- The report is a full replacement: a branch you deleted locally disappears from the project.
-- The hook sends the session cookie, so it stops working when the session expires (`SESSION_TTL_DAYS`,
-  default 30) — re-run the installer with a fresh one.
-- It never blocks or fails a git operation (always exits 0, output suppressed unless `--verbose`).
+Non-interactive:
+
+```bash
+OCTOCODE_API_URL=https://octocode-api.onrender.com \
+OCTOCODE_SESSION_TOKEN=… \
+  scripts/git-hooks/install.sh ~/code/api
+```
+
+It **refuses to overwrite** a `post-checkout`/`post-commit` you already have; it prints the one line
+to add manually instead. The generated hook looks like:
+
+```sh
+#!/bin/sh
+# octocode:start
+if command -v node >/dev/null 2>&1; then
+  OCTOCODE_REPO_DIR="/path/to/repo" node "/path/to/scripts/git-hooks/octocode-branch-sync.mjs" >/dev/null 2>&1 &
+fi
+# octocode:end
+```
+
+Run it by hand any time to debug:
+
+```bash
+node scripts/git-hooks/octocode-branch-sync.mjs --verbose
+```
+
+#### Configuration
+
+Environment variables win over `~/.octocode/config.json`:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `OCTOCODE_API_URL` | config / prompt | API base URL |
+| `OCTOCODE_SESSION_TOKEN` | config / prompt | session cookie value |
+| `OCTOCODE_COOKIE_NAME` | `octocode_session` | cookie name if you changed `SESSION_COOKIE_NAME` |
+| `OCTOCODE_REPO_DIR` | `cwd` | repository the hook should inspect |
+| `OCTOCODE_DEBUG` | – | `1` behaves like `--verbose` |
+
+#### Hosted setup (Render + Neon)
+
+Nothing extra is needed for the hook itself — it runs on **your** machine against the public API.
+On the server side:
+
+1. **Apply the migration** (creates `LocalBranch`):
+   `cd backend && DATABASE_URL=… npx prisma migrate deploy`
+2. `COOKIE_SECURE=true` (HTTPS) and `FRONTEND_URL`/`CORS_ORIGIN` set to the deployed SPA origin, so the
+   browser actually stores and sends the session cookie.
+3. Nothing else — the API stays stateless with respect to files.
+
+#### Troubleshooting
+
+| Symptom | Cause / fix |
+| --- | --- |
+| `skipped: set OCTOCODE_API_URL and OCTOCODE_SESSION_TOKEN` | no config file and no env vars — run the installer |
+| `skipped: cannot read a GitHub remote from …` | `origin` is not a GitHub URL, or the repo has no `origin` |
+| `failed: 401 …` | session expired or a wrong token — copy a fresh cookie |
+| `failed: 404 …` | the repo is not linked to a project of *your* user, or `owner`/`name` differ from the link |
+| success, but the picker is unchanged | wrong project, or the browser cached the list — reopen the New story form |
+| nothing happens at all on commit | `node` not on `PATH` for that git client, or the installer skipped an existing hook |
+| deleted branches keep showing | the hook has not run since; run it manually (it replaces the whole set) |
+
+#### Limits
+
+- Only branches that exist in that clone are reported (`refs/heads`); a branch created in another clone
+  appears after a `fetch`.
+- The report is a **full replacement** — a branch deleted locally disappears from the project.
+- It never blocks or fails a git operation (always exits 0; output suppressed unless `--verbose`).
 - Commit sync for a local-only branch still falls back to the default branch (§6.12), because GitHub
   does not have it yet.
 
