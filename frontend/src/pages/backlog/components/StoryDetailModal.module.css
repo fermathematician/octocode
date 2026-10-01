@@ -54,3 +54,16 @@
   margin: 0;
   font-size: 0.95rem;
 }
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.syncMessage {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}

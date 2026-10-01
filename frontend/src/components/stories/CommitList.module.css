@@ -13,6 +13,12 @@
   letter-spacing: 0.04em;
 }
 
+.latest {
+  text-transform: none;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
 .list {
   list-style: none;
   margin: 0;

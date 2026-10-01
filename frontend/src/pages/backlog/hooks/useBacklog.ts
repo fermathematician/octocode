@@ -5,6 +5,7 @@ import {
   getStories,
   type CreateStoryInput,
 } from "../../../api/stories";
+import { syncStoryCommits } from "../../../api/github";
 import { compareStoriesByPriorityThenAge } from "../../../domain/story";
 import type { Story, StoryPriority } from "../../../domain/types";
 
@@ -18,6 +19,7 @@ interface UseBacklogResult {
   setPriorityFilter: (filter: PriorityFilter) => void;
   assignBranch: (storyId: string, branch: string) => Promise<void>;
   addStory: (input: CreateStoryInput) => Promise<void>;
+  syncCommits: (storyId: string) => Promise<void>;
   reload: () => void;
 }
 
@@ -89,6 +91,14 @@ export function useBacklog(projectId: string | null): UseBacklogResult {
     [reload],
   );
 
+  const syncCommits = useCallback(
+    async (storyId: string) => {
+      await syncStoryCommits(storyId);
+      reload();
+    },
+    [reload],
+  );
+
   return {
     stories,
     loading,
@@ -97,6 +107,7 @@ export function useBacklog(projectId: string | null): UseBacklogResult {
     setPriorityFilter,
     assignBranch,
     addStory,
+    syncCommits,
     reload,
   };
 }

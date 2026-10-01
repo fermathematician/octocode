@@ -14,10 +14,22 @@ export function CommitList({ commits }: CommitListProps) {
     );
   }
 
+  const latest = commits[0];
+
   return (
     <div className={styles.wrapper}>
       <p className={styles.count}>
         {commits.length} commit{commits.length === 1 ? "" : "s"}
+        {latest ? (
+          <span className={styles.latest}>
+            {" · latest "}
+            {new Date(latest.committedAt).toLocaleDateString(undefined, {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            })}
+          </span>
+        ) : null}
       </p>
       <ul className={styles.list}>
         {commits.map((commit) => (

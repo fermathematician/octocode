@@ -31,6 +31,7 @@ export function BacklogPage({
     setPriorityFilter,
     assignBranch,
     addStory,
+    syncCommits,
     reload,
   } = useBacklog(projectId);
   const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
@@ -94,6 +95,9 @@ export function BacklogPage({
           onClose={() => setSelectedStoryId(null)}
           onAssignBranch={async (branch) => {
             await assignBranch(selectedStory.id, branch);
+          }}
+          onSyncCommits={async () => {
+            await syncCommits(selectedStory.id);
           }}
         />
       ) : null}

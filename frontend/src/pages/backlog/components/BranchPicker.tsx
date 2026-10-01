@@ -28,11 +28,19 @@ export function BranchPicker({
 
   const options = useMemo(() => {
     const term = value.trim().toLowerCase();
-    const matches = term
-      ? branches.filter((branch) => branch.toLowerCase().includes(term))
-      : branches;
+    const isKnownBranch = branches.some(
+      (branch) => branch.toLowerCase() === term,
+    );
 
-    return matches.slice(0, MAX_OPTIONS);
+    const filtered =
+      !term || isKnownBranch
+        ? branches
+        : branches.filter((branch) => branch.toLowerCase().includes(term));
+
+    // Never hide every branch: fall back to the full list when nothing matches.
+    const results = filtered.length > 0 ? filtered : branches;
+
+    return results.slice(0, MAX_OPTIONS);
   }, [branches, value]);
 
   const optionsId = `${id}-options`;

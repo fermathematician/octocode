@@ -393,7 +393,8 @@ frontend/src/
 - **Graph** (`pages/graph`): burndown chart + sprint header, project filter.
 - **Project** (`pages/project`): tabs `Backlog` (story CRUD/branch/commits) and `Progress`
   (sprint history). When "All projects" is selected, an **Add project** button opens a modal that
-  lists your GitHub repositories with a search box.
+  lists your GitHub repositories with a search box. Clicking a story card opens a detail modal with
+  the branch picker, the commit list (with dates), and a **Sync commits** button.
 
 ### 5.6 Data flow
 
@@ -414,7 +415,8 @@ Rules (enforced by convention):
 - **Backlog ordering** — priority (`critical → high → medium → low`), then `createdAt` ascending.
 - **Story points** — `[1, 2, 3, 5, 8, 13, 21]`.
 - **Branch field** — the New story form fetches the project's GitHub branches and shows them in a
-  searchable picker; the branch is required and is **not** derived from the story title.
+  searchable picker; the branch is required and is **not** derived from the story title. The picker
+  always lists the fetched branches (it never hides them because the current value does not match).
 - **Sprint generation** — the **Sprints** screen has a **Generate sprint** button that creates a
   one-week sprint (`POST /sprints`, start + 6 days) for a chosen project. (Sprint generation lives
   only on that screen.)
@@ -907,6 +909,9 @@ The detailed gap analysis and phased plan live in **§14**. What remains:
 - **Story commits viewer**: clicking a story card on the Kanban opens a modal with the branch,
   commit count, and the full commit list (message, SHA, author, date) plus a **Sync commits** button;
   `CommitList` was extracted to `components/stories/` and reused by the backlog detail modal.
+- **Branch picker + sync fixes**: the branch picker no longer hides branches when the current value
+  matches nothing (it falls back to the full branch list); the backlog story detail modal gained a
+  **Sync commits** button, and the commit list shows the latest commit date.
 
 ---
 
@@ -981,8 +986,9 @@ These are deliberately documented so future work does not rediscover them.
 
 ### 13.3 GitHub integration
 
-- **Commit sync is manual** (`POST /github/stories/:storyId/sync-commits`), but the story modal now
-  has a **Sync commits** button; there is no schedule/webhook. Commits show up once synced.
+- **Commit sync is manual** (`POST /github/stories/:storyId/sync-commits`); there is no
+  schedule/webhook. Both the backlog story detail modal and the Kanban commits modal have a
+  **Sync commits** button, and a branch that does not exist on GitHub returns a clear error.
 - **Repos and commits fetch only the first page** (`per_page=100`); no pagination. **Branches are
   paginated** (up to 10 pages / 1000 branches) and the branch picker shows up to 100 matches.
 - **Branch access needs the right token permissions**: a classic PAT needs the `repo` scope; a
