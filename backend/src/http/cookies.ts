@@ -39,7 +39,7 @@ export function serializeCookie(
     `${name}=${encodeURIComponent(value)}`,
     "Path=/",
     "HttpOnly",
-    "SameSite=Lax",
+    options.secure ? "SameSite=None" : "SameSite=Lax",
   ];
 
   if (options.maxAgeSeconds !== undefined) {
