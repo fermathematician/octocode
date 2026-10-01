@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authRouter, ensureAuthenticated } from "./auth.js";
 import { calendarRouter } from "./calendar.js";
+import { debugRouter } from "./debug.js";
 import { githubRouter } from "./github.js";
 import { googleCalendarRouter, syncAllCalendars } from "./google-calendar.js";
 import { projectsRouter } from "./projects.js";
@@ -16,5 +17,6 @@ apiRouter.use("/stories", storiesRouter);
 apiRouter.use("/calendar-events", calendarRouter);
 apiRouter.use("/github", githubRouter);
 apiRouter.use("/calendar", googleCalendarRouter);
+apiRouter.use("/debug", debugRouter);
 
 export { ensureAuthenticated, syncAllCalendars };

@@ -326,7 +326,13 @@ from `VITE_API_URL` (default `http://localhost:3333`); `frontend/.env.example` d
 `ScreenId` (in `components/layout/views.ts`) is either a global view or `"project"`:
 
 ```ts
-type GeneralViewId = "today" | "sprints" | "kanban" | "graph" | "calendar";
+type GeneralViewId =
+  | "today"
+  | "sprints"
+  | "kanban"
+  | "graph"
+  | "calendar"
+  | "debug";
 type ScreenId = GeneralViewId | "project";
 ```
 
@@ -336,6 +342,7 @@ The sidebar groups global views and lists projects:
 ```text
 Plan     →  Today, Calendar
 Sprint   →  Sprints, Kanban, Graph
+System   →  Debug
 Projects →  All projects | <project 1> … <project N>
 <user>   →  avatar + login + sign out
 ```
@@ -376,7 +383,7 @@ frontend/src/
 │   ├── stories/                 # CommitList, StoryCommitsModal
 │   └── shared/                  # Badge, Button, EmptyState, ErrorState, Modal, Select, Spinner, TextInput
 │
-└── pages/                       # today, sprints, calendar, kanban, graph, project(backlog + progress)
+└── pages/                       # today, sprints, calendar, kanban, graph, debug, project(backlog + progress)
 ```
 
 ### 5.5 Screens
@@ -387,6 +394,9 @@ frontend/src/
   (upcoming/active/past), points/story progress, a project filter, and **Generate sprint** /
   **Delete** actions.
 - **Calendar** (`pages/calendar`): month grid, day panel, add event.
+- **Debug** (`pages/debug`): shows exactly what the app fetches from GitHub for each linked
+  project — the branch list and the newest 100 commits of the default branch, with dates (and any
+  fetch error).
 - **Kanban** (`pages/kanban`): 5 status columns, drag-and-drop, and a project filter. Click a card
   to open a modal with its branch, commit count, the full commit list (with dates), and a **Sync
   commits** button.
@@ -565,6 +575,7 @@ All routes except `/health` and the two OAuth endpoints require a valid session 
 | --- | --- | --- | --- |
 | GET | `/health` | public | Liveness check → `{ status: "ok" }` |
 | GET | `/ready` | public | Readiness check (DB `SELECT 1`) → `{ status: "ready" }` or 503 |
+| GET | `/debug/overview` | required | Debug: branches + newest 100 commits per linked repo |
 | GET | `/auth/github` | public | Start OAuth; sets `octocode_oauth_state` cookie, redirects to GitHub |
 | GET | `/auth/github/callback` | public | OAuth callback; upserts user, sets session cookie, redirects to frontend |
 | GET | `/auth/me` | required | Current user |
@@ -912,6 +923,9 @@ The detailed gap analysis and phased plan live in **§14**. What remains:
 - **Branch picker + sync fixes**: the branch picker no longer hides branches when the current value
   matches nothing (it falls back to the full branch list); the backlog story detail modal gained a
   **Sync commits** button, and the commit list shows the latest commit date.
+- **Debug screen**: added a **Debug** view (sidebar → System) and `GET /debug/overview`, which return
+  the branches and newest 100 commits of each linked repo's default branch so the GitHub fetch can
+  be inspected directly.
 
 ---
 

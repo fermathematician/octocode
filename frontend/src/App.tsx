@@ -7,6 +7,7 @@ import type { GeneralViewId, ScreenId } from "./components/layout/views";
 import { Spinner } from "./components/shared/Spinner/Spinner";
 import type { Project } from "./domain/types";
 import { CalendarPage } from "./pages/calendar";
+import { DebugPage } from "./pages/debug";
 import { GraphPage } from "./pages/graph";
 import { KanbanPage } from "./pages/kanban";
 import { ProjectPage } from "./pages/project";
@@ -98,6 +99,8 @@ export function App() {
         return <GraphPage />;
       case "calendar":
         return <CalendarPage />;
+      case "debug":
+        return <DebugPage />;
       case "project":
         return (
           <ProjectPage

@@ -1,4 +1,10 @@
-export type GeneralViewId = "today" | "sprints" | "kanban" | "graph" | "calendar";
+export type GeneralViewId =
+  | "today"
+  | "sprints"
+  | "kanban"
+  | "graph"
+  | "calendar"
+  | "debug";
 
 export interface GeneralViewDefinition {
   id: GeneralViewId;
@@ -25,6 +31,10 @@ export const GENERAL_VIEW_GROUPS: GeneralViewGroup[] = [
       { id: "kanban", label: "Kanban" },
       { id: "graph", label: "Graph" },
     ],
+  },
+  {
+    label: "System",
+    views: [{ id: "debug", label: "Debug" }],
   },
 ];
 
