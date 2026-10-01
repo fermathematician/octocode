@@ -1,5 +1,6 @@
 import { AppError } from "../../shared/appError.js";
 import type {
+  GithubBranchComparison,
   GithubBranchSummary,
   GithubClient,
   GithubCommitSummary,
@@ -48,6 +49,12 @@ interface GithubApiCommit {
 
 interface GithubApiBranch {
   name: string;
+}
+
+interface GithubApiComparison {
+  status: string;
+  ahead_by?: number;
+  behind_by?: number;
 }
 
 const API_BASE = "https://api.github.com";
@@ -266,6 +273,25 @@ export class FetchGithubClient implements GithubClient {
     }
 
     return branches;
+  }
+
+  async compareBranches(
+    accessToken: string,
+    owner: string,
+    repo: string,
+    base: string,
+    head: string,
+  ): Promise<GithubBranchComparison> {
+    const comparison = await this.request<GithubApiComparison>(
+      `/repos/${owner}/${repo}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`,
+      accessToken,
+    );
+
+    return {
+      status: comparison.status,
+      aheadBy: comparison.ahead_by ?? 0,
+      behindBy: comparison.behind_by ?? 0,
+    };
   }
 
   async listCommits(

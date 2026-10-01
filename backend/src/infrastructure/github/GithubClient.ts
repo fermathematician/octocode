@@ -35,6 +35,12 @@ export interface GithubBranchSummary {
   name: string;
 }
 
+export interface GithubBranchComparison {
+  status: string;
+  aheadBy: number;
+  behindBy: number;
+}
+
 export interface GithubClient {
   getAuthorizeUrl(state: string): string;
   exchangeCodeForToken(code: string): Promise<GithubToken>;
@@ -45,6 +51,13 @@ export interface GithubClient {
     owner: string,
     repo: string,
   ): Promise<GithubBranchSummary[]>;
+  compareBranches(
+    accessToken: string,
+    owner: string,
+    repo: string,
+    base: string,
+    head: string,
+  ): Promise<GithubBranchComparison>;
   listCommits(
     accessToken: string,
     owner: string,

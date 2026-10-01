@@ -427,6 +427,9 @@ Rules (enforced by convention):
 - **Branch field** — the New story form fetches the project's GitHub branches and shows them in a
   searchable picker; the branch is required and is **not** derived from the story title. The picker
   always lists the fetched branches (it never hides them because the current value does not match).
+- **Commit sync source** — a story's commits come from its branch; if that branch is fully merged into
+  the default branch (or was never pushed), the **default branch** is used instead, so a
+  “merge locally, push `main`” workflow still shows the merged work.
 - **Sprint generation** — the **Sprints** screen has a **Generate sprint** button that creates a
   one-week sprint (`POST /sprints`, start + 6 days) for a chosen project. (Sprint generation lives
   only on that screen.)
@@ -926,6 +929,9 @@ The detailed gap analysis and phased plan live in **§14**. What remains:
 - **Debug screen**: added a **Debug** view (sidebar → System) and `GET /debug/overview`, which return
   the branches and newest 100 commits of each linked repo's default branch so the GitHub fetch can
   be inspected directly.
+- **Merge-aware commit sync**: story commit sync now reads from the repository's default branch when
+  the story branch is fully merged or missing (new `GithubClient.compareBranches`), so work merged
+  into and pushed on `main` (without pushing the feature branch) is reflected.
 
 ---
 
@@ -1003,6 +1009,10 @@ These are deliberately documented so future work does not rediscover them.
 - **Commit sync is manual** (`POST /github/stories/:storyId/sync-commits`); there is no
   schedule/webhook. Both the backlog story detail modal and the Kanban commits modal have a
   **Sync commits** button, and a branch that does not exist on GitHub returns a clear error.
+- **Commit sync is merge-aware**: commits are read from the story’s branch, but if that branch has no
+  unique commits vs the default branch (`behind_by = 0`) or does not exist (`404`), the **default
+  branch** is used (`GithubClient.compareBranches`). This suits a “merge locally, push `main`”
+  workflow; the tradeoff is that such a story can show commits that are not uniquely its own.
 - **Repos and commits fetch only the first page** (`per_page=100`); no pagination. **Branches are
   paginated** (up to 10 pages / 1000 branches) and the branch picker shows up to 100 matches.
 - **Branch access needs the right token permissions**: a classic PAT needs the `repo` scope; a
