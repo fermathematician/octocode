@@ -6,6 +6,7 @@ import { ListProjectBranchesService } from "../../src/modules/github/services/Li
 import { AppError } from "../../src/shared/appError.js";
 import {
   InMemoryGithubRepositoryRepository,
+  InMemoryLocalBranchRepository,
   InMemoryOAuthAccountRepository,
   InMemoryProjectRepository,
   InMemoryStore,
@@ -15,6 +16,7 @@ function setup() {
   const store = new InMemoryStore();
   const projects = new InMemoryProjectRepository(store);
   const githubRepositories = new InMemoryGithubRepositoryRepository(store);
+  const localBranches = new InMemoryLocalBranchRepository(store);
   const oauthAccounts = new InMemoryOAuthAccountRepository();
   const tokenCipher = {
     decrypt: (value: string) => value.replace("enc:", ""),
@@ -26,12 +28,13 @@ function setup() {
   const service = new ListProjectBranchesService(
     projects,
     githubRepositories,
+    localBranches,
     oauthAccounts,
     tokenCipher,
     githubClient,
   );
 
-  return { store, githubRepositories, oauthAccounts, service };
+  return { store, githubRepositories, localBranches, oauthAccounts, service };
 }
 
 async function linkAccount(
@@ -74,7 +77,38 @@ describe("ListProjectBranchesService", () => {
     await linkAccount(oauthAccounts, user.id);
 
     const branches = await service.execute(user.id, project.id);
-    assert.deepEqual(branches, ["main", "feat/x"]);
+    assert.deepEqual(branches, [
+      { name: "main", source: "github" },
+      { name: "feat/x", source: "github" },
+    ]);
+  });
+
+  it("appends local branches that are not on GitHub", async () => {
+    const { store, githubRepositories, localBranches, oauthAccounts, service } =
+      setup();
+    const user = store.seedUser();
+    const project = store.seedProject(user.id);
+
+    await githubRepositories.save({
+      projectId: project.id,
+      userId: user.id,
+      repoId: "1",
+      owner: "owner",
+      name: "repo",
+      defaultBranch: "main",
+      isPrivate: false,
+      installationId: null,
+    });
+    await linkAccount(oauthAccounts, user.id);
+    await localBranches.replaceAll(project.id, ["wip/local-only", "main"]);
+
+    const branches = await service.execute(user.id, project.id);
+
+    assert.deepEqual(branches, [
+      { name: "main", source: "github" },
+      { name: "feat/x", source: "github" },
+      { name: "wip/local-only", source: "local" },
+    ]);
   });
 
   it("rejects a project with no linked repository", async () => {

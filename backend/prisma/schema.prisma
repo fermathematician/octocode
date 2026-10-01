@@ -104,6 +104,7 @@ model Project {
   repository GithubRepository?
   sprints    Sprint[]
   stories    Story[]
+  localBranches LocalBranch[]
 
   @@index([ownerId])
 }
@@ -129,6 +130,21 @@ model GithubRepository {
   commits Commit[]
 
   @@unique([userId, repoId])
+}
+
+/// A branch seen in the developer's local clone, reported by the git hook.
+/// GitHub cannot see these until they are pushed; the branch picker merges
+/// them in and marks them as local.
+model LocalBranch {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, name])
+  @@index([projectId])
 }
 
 model Sprint {

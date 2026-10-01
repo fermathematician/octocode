@@ -8,6 +8,7 @@ import { PrismaUserRepository } from "../modules/auth/repositories/UserRepositor
 import { PrismaCalendarEventRepository } from "../modules/calendar/repositories/CalendarEventRepository.js";
 import { PrismaCommitRepository } from "../modules/github/repositories/CommitRepository.js";
 import { PrismaGithubRepositoryRepository } from "../modules/github/repositories/GithubRepositoryRepository.js";
+import { PrismaLocalBranchRepository } from "../modules/github/repositories/LocalBranchRepository.js";
 import { PrismaProjectRepository } from "../modules/projects/repositories/ProjectRepository.js";
 import { PrismaSprintRepository } from "../modules/sprints/repositories/SprintRepository.js";
 import { PrismaStoryRepository } from "../modules/stories/repositories/StoryRepository.js";
@@ -39,6 +40,7 @@ export const githubRepositoryRepository = new PrismaGithubRepositoryRepository(
   prisma,
 );
 export const commitRepository = new PrismaCommitRepository(prisma);
+export const localBranchRepository = new PrismaLocalBranchRepository(prisma);
 export const calendarSyncStateRepository = new PrismaCalendarSyncStateRepository(
   prisma,
 );

@@ -6,13 +6,18 @@ import type { GithubWebhookController } from "../controllers/GithubWebhookContro
 import type { LinkRepositoryController } from "../controllers/LinkRepositoryController.js";
 import type { ListProjectBranchesController } from "../controllers/ListProjectBranchesController.js";
 import type { ListRepositoriesController } from "../controllers/ListRepositoriesController.js";
+import type { RecordLocalBranchesController } from "../controllers/RecordLocalBranchesController.js";
 import type { SyncCommitsController } from "../controllers/SyncCommitsController.js";
 import type { SyncStoryCommitsController } from "../controllers/SyncStoryCommitsController.js";
-import { parseLinkRepositoryBody } from "../validation/github.schema.js";
+import {
+  parseLinkRepositoryBody,
+  parseRecordLocalBranchesBody,
+} from "../validation/github.schema.js";
 
 export interface GithubControllers {
   listRepositories: ListRepositoriesController;
   listProjectBranches: ListProjectBranchesController;
+  recordLocalBranches: RecordLocalBranchesController;
   linkRepository: LinkRepositoryController;
   syncStoryCommits: SyncStoryCommitsController;
   syncCommits: SyncCommitsController;
@@ -39,6 +44,11 @@ export function createGithubRouter(
     "/projects/:projectId/branches",
     validate({ params: parseProjectParams }),
     controllers.listProjectBranches.handle,
+  );
+  router.post(
+    "/branches/local",
+    validate({ body: parseRecordLocalBranchesBody }),
+    controllers.recordLocalBranches.handle,
   );
   router.post("/sync", controllers.syncCommits.handle);
   router.post(

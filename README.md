@@ -208,6 +208,10 @@ interface Story {
 
 **Commit**: `{ id, sha, message, author, committedAt }` — synced from GitHub for a story branch.
 
+**Branch** — `{ name, source }`, where `source` is `"github"` (exists on GitHub) or `"local"`
+(only in the developer's clone, reported by the git hook — see §6.13). The branch picker shows both
+and tags the local ones.
+
 **Sprint**: `{ id, projectId, name, startDate, endDate }` (ISO dates). One week long.
 
 **CalendarEvent**: `{ id, type, title, date, startTime, notes }` where
@@ -267,7 +271,7 @@ octocode/
 ├── tests/                     ← node:test unit tests for the harness tooling
 ├── evals/                     ← evaluation runner for the harness (`run-eval.ts`)
 ├── public/                    ← static assets for the harness dashboard
-├── scripts/                   ← empty (.gitkeep)
+├── scripts/git-hooks/         ← local-branch sync hook + installer (see §6.13)
 ├── tasks/                     ← harness task briefs (markdown)
 │
 └── .pi/                       ← agent harness configuration (see §8)
@@ -424,9 +428,12 @@ Rules (enforced by convention):
 
 - **Backlog ordering** — priority (`critical → high → medium → low`), then `createdAt` ascending.
 - **Story points** — `[1, 2, 3, 5, 8, 13, 21]`.
-- **Branch field** — the New story form fetches the project's GitHub branches and shows them in a
+- **Branch field** — the New story form fetches the project's branches and shows them in a
   searchable picker; the branch is required and is **not** derived from the story title. The picker
   always lists the fetched branches (it never hides them because the current value does not match).
+  The list merges **GitHub** branches with **local** ones reported by the git hook (§6.13); local
+  entries carry a `local` tag. A branch that is neither pushed nor reported by the hook cannot be
+  listed — the picker is a combobox, so type the name instead.
 - **Commit sync source** — a story's commits come from its branch; if that branch is fully merged into
   the default branch (or was never pushed), the **default branch** is used instead, so a
   “merge locally, push `main`” workflow still shows the merged work.
@@ -612,7 +619,8 @@ All routes except `/health` and the two OAuth endpoints require a valid session 
 | POST | `/calendar/google/sync` | required | Pull + push and return a sync summary |
 | GET | `/github/repositories` | required | List the actor's GitHub repositories |
 | POST | `/github/repositories` | required | Link a repo to a project |
-| GET | `/github/projects/:projectId/branches` | required | List branches of the project's linked repository |
+| GET | `/github/projects/:projectId/branches` | required | List branches of the linked repository; merges GitHub + local (`{ name, source }`) |
+| POST | `/github/branches/local` | required | Record local branches `{ owner, name, names }` reported by the git hook |
 | POST | `/github/stories/:storyId/sync-commits` | required | Fetch + upsert commits for the story branch |
 | POST | `/github/sync` | required | Sync commits for all of the actor's stories |
 | POST | `/github/webhooks` | public (signature) | GitHub `push` webhook; needs `GITHUB_WEBHOOK_SECRET` |
@@ -751,6 +759,35 @@ Each sync resolves which branch to read (`SyncStoryCommitsService`): the story b
 unmerged commits, otherwise the repository’s **default branch** (merged or missing branch).
 `SyncCommitsService` skips a failing story instead of aborting the batch.
 
+### 6.13 Local branches (git hook)
+
+A hosted backend cannot read your `.git`, so unpushed branches are invisible to the branch picker by
+default. The hook in `scripts/git-hooks/` closes that gap: it runs locally on checkout/commit, lists
+`refs/heads`, and reports them to `POST /github/branches/local`. The API resolves the repository by
+`owner`/`name` (parsed from the remote) and **scoped to the caller**, so the hook never needs the
+project id.
+
+Setup:
+
+```bash
+scripts/git-hooks/install.sh                 # current repo
+scripts/git-hooks/install.sh ~/code/api …    # one or more repos
+```
+
+The installer asks for the API URL and the `octocode_session` cookie value (browser → DevTools →
+Application → Cookies), writes `~/.octocode/config.json` (`chmod 600`), installs `post-checkout` and
+`post-commit` hooks that run in the background (git never waits), and then runs the sync once with
+`--verbose` so failures are visible immediately. Re-running it is idempotent.
+
+- The hook identifies the repository from `origin`; **link the repo to a project first**, otherwise the
+  API answers 404 and the hook stays quiet.
+- The report is a full replacement: a branch you deleted locally disappears from the project.
+- The hook sends the session cookie, so it stops working when the session expires (`SESSION_TTL_DAYS`,
+  default 30) — re-run the installer with a fresh one.
+- It never blocks or fails a git operation (always exits 0, output suppressed unless `--verbose`).
+- Commit sync for a local-only branch still falls back to the default branch (§6.12), because GitHub
+  does not have it yet.
+
 ---
 
 ## 7. Frontend ↔ backend integration
@@ -852,8 +889,9 @@ Never claim a check passed without executing it.
 
 The detailed gap analysis and phased plan live in **§14**. What remains:
 
-1. **GitHub App** — installation tokens (short-lived) + signed webhooks + `GithubWebhookEvent`
-   idempotency; automatic commit sync instead of the manual endpoint.
+1. **GitHub App** — installation tokens (short-lived) instead of user OAuth/PAT tokens. Automatic
+   commit sync (background interval + `push` webhooks, §6.12) is implemented; the manual endpoints
+   remain for on-demand refreshes.
 2. **Database seed script** — the initial migration is committed; a seed script is still missing.
 3. **Tests** — backend integration tests (supertest + test DB) and frontend tests (Vitest + RTL).
    Both require approval (new dependencies).
@@ -957,6 +995,11 @@ The detailed gap analysis and phased plan live in **§14**. What remains:
   called by the SPA on open), a background interval (`GITHUB_COMMIT_SYNC_INTERVAL_MS`), and a public,
   signature-verified `POST /github/webhooks` endpoint that resyncs a repository on `push` (new
   `SyncCommitsService`, `HandleGithubWebhookService`, `GithubWebhookEventRepository`).
+- **Local branches from the git hook**: added the `LocalBranch` model (migration
+  `20261001000000_local_branches`), `POST /github/branches/local` (resolves the repo by
+  `owner`/`name`, scoped to the caller), a merged `GET /github/projects/:id/branches` returning
+  `{ name, source }`, and `scripts/git-hooks/` (installer + `octocode-branch-sync.mjs`) so unpushed
+  branches appear in the picker with a `local` tag.
 
 ---
 
@@ -976,8 +1019,10 @@ The detailed gap analysis and phased plan live in **§14**. What remains:
 | `backend/src/config/env.ts` | Environment variables. |
 | `backend/src/composition/**` | Dependency construction. |
 | `backend/src/modules/auth/**` | GitHub OAuth + sessions. |
-| `backend/src/modules/github/**` | Repo link + commit sync. |
+| `backend/src/modules/github/**` | Repo link + commit sync + local branches. |
 | `backend/src/shared/validation.ts` | Request validation helpers. |
+| `scripts/git-hooks/install.sh` | Installs the local-branch sync hook (see §6.13). |
+| `scripts/git-hooks/octocode-branch-sync.mjs` | Reports local branches to the API. |
 | `backend/.env.example` | Environment documentation. |
 | `AGENTS.md` | Agent working rules. |
 
@@ -1049,6 +1094,10 @@ These are deliberately documented so future work does not rediscover them.
 - **GitHub repositories listing** uses `/user/repos` (repos the user can access), sorted by update.
 - **Author attribution** falls back to the commit author name when GitHub does not map a user.
 - **Renaming a branch on GitHub** does not update the story's stored branch automatically.
+- **The branch picker merges GitHub and local branches** — `GET /github/projects/:id/branches`
+  returns `{ name, source }`; `local` entries come from the git hook (§6.13). Without the hook, only
+  pushed branches appear (the hosted backend cannot read your `.git`), so push the branch or type the
+  name (the picker accepts free text).
 - **Token auth scheme**: the GitHub client sends `Authorization: Bearer` first and retries with the
   `token` scheme on a 401, so both OAuth tokens and classic personal access tokens (`ghp_…`) work.
   A rejected token returns `401` with a clear message (not a generic `502`).
@@ -1059,7 +1108,8 @@ These are deliberately documented so future work does not rediscover them.
 - **Auth errors surface as a generic message** on the login screen (`?auth=error`); detailed reasons
   are not shown (by design, to avoid leaking internals).
 - **No route URLs** — navigation is state, so deep links/refresh lose the current screen.
-- **Commit sync UI is missing**; story commits are read-only once present.
+- **Commits are read-only after sync** — they can be refreshed (**Sync commits**) but not edited in
+  the SPA.
 - **Drag-and-drop is pointer-only** (no keyboard/touch fallback).
 - **`VITE_API_URL`** defaults to `http://localhost:3333`; set it per environment.
 

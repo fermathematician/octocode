@@ -12,8 +12,18 @@ export function getGithubRepositories(): Promise<GithubRepositorySummary[]> {
   return apiFetch<GithubRepositorySummary[]>("/github/repositories");
 }
 
-export function getProjectBranches(projectId: string): Promise<string[]> {
-  return apiFetch<string[]>(`/github/projects/${projectId}/branches`);
+export type ProjectBranchSource = "github" | "local";
+
+export interface ProjectBranch {
+  name: string;
+  /** `local` means the branch exists only in the developer's clone. */
+  source: ProjectBranchSource;
+}
+
+export function getProjectBranches(
+  projectId: string,
+): Promise<ProjectBranch[]> {
+  return apiFetch<ProjectBranch[]>(`/github/projects/${projectId}/branches`);
 }
 
 export interface SyncStoryCommitsResult {

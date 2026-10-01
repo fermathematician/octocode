@@ -5,17 +5,25 @@ import { AppError } from "../../../shared/appError.js";
 import type { OAuthAccountRepository } from "../../auth/repositories/OAuthAccountRepository.js";
 import type { ProjectRepository } from "../../projects/repositories/ProjectRepository.js";
 import type { GithubRepositoryRepository } from "../repositories/GithubRepositoryRepository.js";
+import type { LocalBranchRepository } from "../repositories/LocalBranchRepository.js";
+
+export interface ProjectBranch {
+  name: string;
+  /** `local` means the branch exists only in the developer's clone. */
+  source: "github" | "local";
+}
 
 export class ListProjectBranchesService {
   constructor(
     private readonly projects: ProjectRepository,
     private readonly githubRepositories: GithubRepositoryRepository,
+    private readonly localBranches: LocalBranchRepository,
     private readonly oauthAccounts: OAuthAccountRepository,
     private readonly tokenCipher: TokenCipher,
     private readonly githubClient: GithubClient,
   ) {}
 
-  async execute(ownerId: string, projectId: string): Promise<string[]> {
+  async execute(ownerId: string, projectId: string): Promise<ProjectBranch[]> {
     const project = await this.projects.findByIdForOwner(projectId, ownerId);
 
     if (!project) {
@@ -38,12 +46,24 @@ export class ListProjectBranchesService {
     }
 
     const accessToken = this.tokenCipher.decrypt(account.accessToken);
-    const branches = await this.githubClient.listBranches(
-      accessToken,
-      repository.owner,
-      repository.name,
-    );
+    const [githubBranches, localBranches] = await Promise.all([
+      this.githubClient.listBranches(
+        accessToken,
+        repository.owner,
+        repository.name,
+      ),
+      this.localBranches.listByProject(projectId),
+    ]);
 
-    return branches.map((branch) => branch.name);
+    const known = new Set(githubBranches.map((branch) => branch.name));
+
+    return [
+      ...githubBranches.map(
+        (branch): ProjectBranch => ({ name: branch.name, source: "github" }),
+      ),
+      ...localBranches
+        .filter((branch) => !known.has(branch.name))
+        .map((branch): ProjectBranch => ({ name: branch.name, source: "local" })),
+    ];
   }
 }

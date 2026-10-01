@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { getProjectBranches } from "../../../api/github";
+import { getProjectBranches, type ProjectBranch } from "../../../api/github";
 import { ApiError } from "../../../api/http";
 
 interface UseProjectBranchesResult {
-  branches: string[];
+  branches: ProjectBranch[];
   loading: boolean;
   error: string | null;
 }
@@ -11,7 +11,7 @@ interface UseProjectBranchesResult {
 export function useProjectBranches(
   projectId: string | null,
 ): UseProjectBranchesResult {
-  const [branches, setBranches] = useState<string[]>([]);
+  const [branches, setBranches] = useState<ProjectBranch[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

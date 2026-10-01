@@ -1,12 +1,17 @@
 import { useMemo, useState } from "react";
 import styles from "./BranchPicker.module.css";
 
+interface BranchOption {
+  name: string;
+  source: "github" | "local";
+}
+
 interface BranchPickerProps {
   id: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
-  branches: string[];
+  branches: BranchOption[];
   error?: string;
   hint?: string;
   placeholder?: string;
@@ -29,13 +34,15 @@ export function BranchPicker({
   const options = useMemo(() => {
     const term = value.trim().toLowerCase();
     const isKnownBranch = branches.some(
-      (branch) => branch.toLowerCase() === term,
+      (branch) => branch.name.toLowerCase() === term,
     );
 
     const filtered =
       !term || isKnownBranch
         ? branches
-        : branches.filter((branch) => branch.toLowerCase().includes(term));
+        : branches.filter((branch) =>
+            branch.name.toLowerCase().includes(term),
+          );
 
     // Never hide every branch: fall back to the full list when nothing matches.
     const results = filtered.length > 0 ? filtered : branches;
@@ -75,19 +82,24 @@ export function BranchPicker({
         {isExpanded ? (
           <ul className={styles.options} id={optionsId} role="listbox">
             {options.map((branch) => (
-              <li key={branch}>
+              <li key={branch.name}>
                 <button
                   type="button"
                   role="option"
-                  aria-selected={branch === value}
+                  aria-selected={branch.name === value}
                   className={styles.option}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
-                    onChange(branch);
+                    onChange(branch.name);
                     setIsOpen(false);
                   }}
                 >
-                  {branch}
+                  <span className={styles.optionName}>{branch.name}</span>
+                  {branch.source === "local" ? (
+                    <span className={styles.localTag} title="Only in your local clone">
+                      local
+                    </span>
+                  ) : null}
                 </button>
               </li>
             ))}

@@ -6,6 +6,7 @@ import {
   type CalendarEvent,
   type CalendarSyncState,
   type GithubRepository,
+  type LocalBranch,
   type OAuthAccount,
   type OAuthProvider,
   type Project,
@@ -37,6 +38,7 @@ import type {
   GithubRepositoryRepository,
   SaveGithubRepositoryData,
 } from "../../src/modules/github/repositories/GithubRepositoryRepository.js";
+import type { LocalBranchRepository } from "../../src/modules/github/repositories/LocalBranchRepository.js";
 import type {
   CreateProjectData,
   ProjectRepository,
@@ -67,6 +69,7 @@ export class InMemoryStore {
   sprints: Sprint[] = [];
   stories: Story[] = [];
   githubRepositories: GithubRepository[] = [];
+  localBranches: LocalBranch[] = [];
   calendarEvents: CalendarEvent[] = [];
   private sequence = 0;
 
@@ -580,6 +583,21 @@ export class InMemoryGithubRepositoryRepository
     );
   }
 
+  findByUserAndOwnerAndName(
+    userId: string,
+    owner: string,
+    name: string,
+  ): Promise<GithubRepository | null> {
+    return Promise.resolve(
+      this.store.githubRepositories.find(
+        (repository) =>
+          repository.userId === userId &&
+          repository.owner === owner &&
+          repository.name === name,
+      ) ?? null,
+    );
+  }
+
   async save(data: SaveGithubRepositoryData): Promise<GithubRepository> {
     const existing = await this.findByProject(data.projectId);
     const now = new Date();
@@ -626,6 +644,53 @@ export class InMemoryGithubRepositoryRepository
     if (repository) {
       repository.lastSyncedAt = syncedAt;
     }
+  }
+}
+
+export class InMemoryLocalBranchRepository implements LocalBranchRepository {
+  constructor(private readonly store: InMemoryStore) {}
+
+  async listByProject(projectId: string): Promise<LocalBranch[]> {
+    return this.store.localBranches.filter(
+      (branch) => branch.projectId === projectId,
+    );
+  }
+
+  async replaceAll(projectId: string, names: string[]): Promise<string[]> {
+    const unique = [...new Set(names)];
+    const now = new Date();
+
+    this.store.localBranches = this.store.localBranches.filter(
+      (branch) =>
+        branch.projectId !== projectId || unique.includes(branch.name),
+    );
+
+    for (const name of unique) {
+      const existing = this.store.localBranches.find(
+        (branch) => branch.projectId === projectId && branch.name === name,
+      );
+
+      if (existing) {
+        existing.updatedAt = now;
+        continue;
+      }
+
+      this.store.localBranches.push({
+        id: this.store.nextId("branch"),
+        projectId,
+        name,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    return unique;
+  }
+
+  async deleteByProject(projectId: string): Promise<void> {
+    this.store.localBranches = this.store.localBranches.filter(
+      (branch) => branch.projectId !== projectId,
+    );
   }
 }
 

@@ -52,6 +52,40 @@ export function optionalString(
   return value;
 }
 
+export function requireStringArray(
+  record: Record<string, unknown>,
+  field: string,
+  options: { maxItems?: number; maxLength?: number } = {},
+): string[] {
+  const value = record[field];
+
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new ValidationError(`${field} must be a non-empty array.`);
+  }
+
+  if (options.maxItems !== undefined && value.length > options.maxItems) {
+    throw new ValidationError(
+      `${field} must have at most ${options.maxItems} items.`,
+    );
+  }
+
+  return value.map((item) => {
+    if (typeof item !== "string" || item.trim().length === 0) {
+      throw new ValidationError(`${field} must only contain non-empty strings.`);
+    }
+
+    const trimmed = item.trim();
+
+    if (options.maxLength !== undefined && trimmed.length > options.maxLength) {
+      throw new ValidationError(
+        `${field} items must be at most ${options.maxLength} characters.`,
+      );
+    }
+
+    return trimmed;
+  });
+}
+
 export function requireEnum<T extends string>(
   record: Record<string, unknown>,
   field: string,
