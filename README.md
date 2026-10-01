@@ -614,6 +614,8 @@ All routes except `/health` and the two OAuth endpoints require a valid session 
 | POST | `/github/repositories` | required | Link a repo to a project |
 | GET | `/github/projects/:projectId/branches` | required | List branches of the project's linked repository |
 | POST | `/github/stories/:storyId/sync-commits` | required | Fetch + upsert commits for the story branch |
+| POST | `/github/sync` | required | Sync commits for all of the actor's stories |
+| POST | `/github/webhooks` | public (signature) | GitHub `push` webhook; needs `GITHUB_WEBHOOK_SECRET` |
 
 Responses use the frontend DTO shapes (§3). Errors return `{ "message": string }`.
 
@@ -678,6 +680,8 @@ Frontend LoginScreen
 | `GITHUB_CLIENT_ID` | for login | `""` | OAuth App client id |
 | `GITHUB_CLIENT_SECRET` | for login | `""` | OAuth App client secret |
 | `GITHUB_OAUTH_CALLBACK_URL` | no | `http://localhost:3333/auth/github/callback` | Must match the OAuth App |
+| `GITHUB_WEBHOOK_SECRET` | no | `""` | Secret for `POST /github/webhooks`; empty disables it |
+| `GITHUB_COMMIT_SYNC_INTERVAL_MS` | no | `300000` | Background commit sync interval |
 | `SESSION_COOKIE_NAME` | no | `octocode_session` | Session cookie name |
 | `SESSION_TTL_DAYS` | no | `30` | Session lifetime |
 | `COOKIE_SECURE` | no | `false` | Set `true` behind HTTPS |
@@ -729,6 +733,23 @@ for deployment).
 - **Scope**: `https://www.googleapis.com/auth/calendar.events`.
 - **Sprints** are exactly 7 days (`SPRINT_DURATION_DAYS = 7`).
 - **Limitations**: §13.6.
+
+### 6.12 GitHub commit sync
+
+Commits can be synchronised four ways:
+
+- **Manual** — `POST /github/stories/:storyId/sync-commits` (the **Sync commits** buttons).
+- **On open** — `POST /github/sync` syncs all of the actor's stories; the SPA calls it once when the
+  Kanban/Backlog loads.
+- **Background** — `server.ts` runs `SyncCommitsService.executeAll()` every
+  `GITHUB_COMMIT_SYNC_INTERVAL_MS` (same pattern as the Google Calendar sync).
+- **Webhook (real time)** — `POST /github/webhooks` (public, `X-Hub-Signature-256` verified with
+  `GITHUB_WEBHOOK_SECRET`) resyncs a repository on `push`. Requires a **repository webhook** with the
+  same secret and a publicly reachable URL (e.g. Render) — it does not work against `localhost`.
+
+Each sync resolves which branch to read (`SyncStoryCommitsService`): the story branch when it has
+unmerged commits, otherwise the repository’s **default branch** (merged or missing branch).
+`SyncCommitsService` skips a failing story instead of aborting the batch.
 
 ---
 
@@ -932,6 +953,10 @@ The detailed gap analysis and phased plan live in **§14**. What remains:
 - **Merge-aware commit sync**: story commit sync now reads from the repository's default branch when
   the story branch is fully merged or missing (new `GithubClient.compareBranches`), so work merged
   into and pushed on `main` (without pushing the feature branch) is reflected.
+- **Automatic + webhook commit sync**: added `POST /github/sync` (sync all of the actor's stories,
+  called by the SPA on open), a background interval (`GITHUB_COMMIT_SYNC_INTERVAL_MS`), and a public,
+  signature-verified `POST /github/webhooks` endpoint that resyncs a repository on `push` (new
+  `SyncCommitsService`, `HandleGithubWebhookService`, `GithubWebhookEventRepository`).
 
 ---
 
@@ -1006,9 +1031,10 @@ These are deliberately documented so future work does not rediscover them.
 
 ### 13.3 GitHub integration
 
-- **Commit sync is manual** (`POST /github/stories/:storyId/sync-commits`); there is no
-  schedule/webhook. Both the backlog story detail modal and the Kanban commits modal have a
-  **Sync commits** button, and a branch that does not exist on GitHub returns a clear error.
+- **Commit sync is automatic-ish**: a manual button, a **sync-on-open** call from the SPA, and a
+  **background interval** (`GITHUB_COMMIT_SYNC_INTERVAL_MS`). True real-time requires a public webhook
+  (`POST /github/webhooks` + a repository webhook with `GITHUB_WEBHOOK_SECRET`), which cannot run
+  against `localhost`.
 - **Commit sync is merge-aware**: commits are read from the story’s branch, but if that branch has no
   unique commits vs the default branch (`behind_by = 0`) or does not exist (`404`), the **default
   branch** is used (`GithubClient.compareBranches`). This suits a “merge locally, push `main`”

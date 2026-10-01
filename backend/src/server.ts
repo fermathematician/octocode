@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { app } from "./app.js";
 import { env } from "./config/env.js";
+import { backgroundCommitSync } from "./composition/github.js";
 import { syncAllCalendars } from "./composition/index.js";
 import { sessionProvider } from "./composition/shared.js";
 import { prisma } from "./infrastructure/prisma/client.js";
@@ -41,6 +42,19 @@ const calendarSyncTimer = setInterval(() => {
 }, env.google.syncIntervalMs);
 calendarSyncTimer.unref();
 
+async function syncCommits(): Promise<void> {
+  try {
+    await backgroundCommitSync.executeAll();
+  } catch (error) {
+    console.error("Commit sync job failed.", error);
+  }
+}
+
+const commitSyncTimer = setInterval(() => {
+  void syncCommits();
+}, env.github.commitSyncIntervalMs);
+commitSyncTimer.unref();
+
 let shuttingDown = false;
 
 function shutdown(signal: string): void {
@@ -52,6 +66,7 @@ function shutdown(signal: string): void {
   console.log(`Received ${signal}. Shutting down…`);
   clearInterval(cleanupTimer);
   clearInterval(calendarSyncTimer);
+  clearInterval(commitSyncTimer);
 
   server.close(() => {
     void prisma.$disconnect().finally(() => process.exit(0));

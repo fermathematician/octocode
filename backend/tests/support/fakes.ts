@@ -454,6 +454,12 @@ export class InMemoryStoryRepository implements StoryRepository {
       .map((story) => story.branch);
   }
 
+  async findIdsByProject(projectId: string): Promise<string[]> {
+    return this.store.stories
+      .filter((story) => story.projectId === projectId)
+      .map((story) => story.id);
+  }
+
   private require(id: string): Story {
     const story = this.store.stories.find((candidate) => candidate.id === id);
 
@@ -552,6 +558,25 @@ export class InMemoryGithubRepositoryRepository
       this.store.githubRepositories.find(
         (repository) => repository.projectId === projectId,
       ) ?? null
+    );
+  }
+
+  async findAll(): Promise<GithubRepository[]> {
+    return [...this.store.githubRepositories];
+  }
+
+  async findAllByUser(userId: string): Promise<GithubRepository[]> {
+    return this.store.githubRepositories.filter(
+      (repository) => repository.userId === userId,
+    );
+  }
+
+  async findAllByOwnerAndName(
+    owner: string,
+    name: string,
+  ): Promise<GithubRepository[]> {
+    return this.store.githubRepositories.filter(
+      (repository) => repository.owner === owner && repository.name === name,
     );
   }
 

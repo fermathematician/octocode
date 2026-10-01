@@ -16,6 +16,12 @@ export interface SaveGithubRepositoryData {
 
 export interface GithubRepositoryRepository {
   findByProject(projectId: string): Promise<GithubRepository | null>;
+  findAll(): Promise<GithubRepository[]>;
+  findAllByUser(userId: string): Promise<GithubRepository[]>;
+  findAllByOwnerAndName(
+    owner: string,
+    name: string,
+  ): Promise<GithubRepository[]>;
   save(data: SaveGithubRepositoryData): Promise<GithubRepository>;
   deleteByProject(projectId: string): Promise<void>;
   touchSynced(projectId: string, syncedAt: Date): Promise<void>;
@@ -28,6 +34,21 @@ export class PrismaGithubRepositoryRepository
 
   findByProject(projectId: string): Promise<GithubRepository | null> {
     return this.prisma.githubRepository.findUnique({ where: { projectId } });
+  }
+
+  findAll(): Promise<GithubRepository[]> {
+    return this.prisma.githubRepository.findMany();
+  }
+
+  findAllByUser(userId: string): Promise<GithubRepository[]> {
+    return this.prisma.githubRepository.findMany({ where: { userId } });
+  }
+
+  findAllByOwnerAndName(
+    owner: string,
+    name: string,
+  ): Promise<GithubRepository[]> {
+    return this.prisma.githubRepository.findMany({ where: { owner, name } });
   }
 
   save(data: SaveGithubRepositoryData): Promise<GithubRepository> {

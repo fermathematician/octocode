@@ -28,3 +28,13 @@ export function syncStoryCommits(
     { method: "POST" },
   );
 }
+
+export interface SyncAllCommitsResult {
+  stories: number;
+  commits: number;
+}
+
+/** Syncs commits for every story the current user owns. */
+export function syncAllCommits(): Promise<SyncAllCommitsResult> {
+  return apiFetch<SyncAllCommitsResult>("/github/sync", { method: "POST" });
+}

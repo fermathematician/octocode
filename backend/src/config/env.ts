@@ -91,6 +91,12 @@ export const env = {
       "GITHUB_OAUTH_CALLBACK_URL",
       "http://localhost:3333/auth/github/callback",
     ),
+    // Secret configured on the repository webhook. Empty disables the endpoint.
+    webhookSecret: readOptional("GITHUB_WEBHOOK_SECRET", ""),
+    commitSyncIntervalMs: readNumber(
+      "GITHUB_COMMIT_SYNC_INTERVAL_MS",
+      5 * 60 * 1000,
+    ),
   },
   google: {
     clientId: readOptional("GOOGLE_CLIENT_ID", ""),

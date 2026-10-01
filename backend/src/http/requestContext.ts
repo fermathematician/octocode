@@ -8,6 +8,7 @@ declare global {
       auth?: AuthContext;
       validated?: ValidatedRequest;
       requestId?: string;
+      rawBody?: Buffer;
     }
   }
 }

@@ -54,6 +54,7 @@ export interface StoryRepository {
   updateBranch(id: string, branch: string): Promise<StoryWithCommits>;
   moveToSprint(id: string, sprintId: string | null): Promise<StoryWithCommits>;
   findBranchesByProject(projectId: string): Promise<string[]>;
+  findIdsByProject(projectId: string): Promise<string[]>;
 }
 
 const include = { commits: { orderBy: { committedAt: "desc" as const } } };
@@ -140,5 +141,14 @@ export class PrismaStoryRepository implements StoryRepository {
     });
 
     return stories.map((story) => story.branch);
+  }
+
+  async findIdsByProject(projectId: string): Promise<string[]> {
+    const stories = await this.prisma.story.findMany({
+      where: { projectId },
+      select: { id: true },
+    });
+
+    return stories.map((story) => story.id);
   }
 }

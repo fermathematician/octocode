@@ -48,7 +48,14 @@ app.use(
   }),
 );
 
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (request, _response, buffer) => {
+      // Keep the raw body so the GitHub webhook signature can be verified.
+      (request as { rawBody?: Buffer }).rawBody = buffer;
+    },
+  }),
+);
 app.use(ensureAuthenticated);
 app.use(apiRouter);
 app.use(notFoundHandler);

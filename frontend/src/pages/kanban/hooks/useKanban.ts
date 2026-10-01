@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getProjects } from "../../../api/projects";
 import { getSprints } from "../../../api/sprints";
 import { getStories, updateStoryStatus } from "../../../api/stories";
-import { syncStoryCommits } from "../../../api/github";
+import { syncAllCommits, syncStoryCommits } from "../../../api/github";
 import { selectActiveSprints } from "../../../domain/sprint";
 import { compareStoriesByPriorityThenAge } from "../../../domain/story";
 import { STORY_STATUSES } from "../../../domain/types";
@@ -70,6 +70,30 @@ export function useKanban(): UseKanbanResult {
       cancelled = true;
     };
   }, [reloadToken]);
+
+  // Best-effort sync so the board reflects recent pushes without a manual click.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function syncOnOpen() {
+      try {
+        await syncAllCommits();
+        const updated = await getStories();
+
+        if (!cancelled) {
+          setStories(updated);
+        }
+      } catch {
+        // A failed background sync must not break the board.
+      }
+    }
+
+    void syncOnOpen();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const reload = useCallback(() => {
     setReloadToken((token) => token + 1);

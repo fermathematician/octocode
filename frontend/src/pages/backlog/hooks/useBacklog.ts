@@ -5,7 +5,7 @@ import {
   getStories,
   type CreateStoryInput,
 } from "../../../api/stories";
-import { syncStoryCommits } from "../../../api/github";
+import { syncStoryCommits, syncAllCommits } from "../../../api/github";
 import { compareStoriesByPriorityThenAge } from "../../../domain/story";
 import type { Story, StoryPriority } from "../../../domain/types";
 
@@ -59,6 +59,30 @@ export function useBacklog(projectId: string | null): UseBacklogResult {
       cancelled = true;
     };
   }, [reloadToken]);
+
+  // Best-effort sync so the backlog reflects recent pushes without a manual click.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function syncOnOpen() {
+      try {
+        await syncAllCommits();
+        const updated = await getStories();
+
+        if (!cancelled) {
+          setAllStories(updated);
+        }
+      } catch {
+        // A failed background sync must not break the backlog.
+      }
+    }
+
+    void syncOnOpen();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const reload = useCallback(() => {
     setReloadToken((token) => token + 1);
