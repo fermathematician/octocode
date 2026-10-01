@@ -1,12 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { ApiError } from "../../../api/http";
-import { createSprint } from "../../../api/sprints";
-import { Button } from "../../../components/shared/Button/Button";
-import { Modal } from "../../../components/shared/Modal/Modal";
-import { Select } from "../../../components/shared/Select/Select";
-import { TextInput } from "../../../components/shared/TextInput/TextInput";
-import type { Project } from "../../../domain/types";
-import { todayIso } from "../../../shared/date";
+import { ApiError } from "../../api/http";
+import { createSprint } from "../../api/sprints";
+import type { Project } from "../../domain/types";
+import { todayIso } from "../../shared/date";
+import { Button } from "../shared/Button/Button";
+import { Modal } from "../shared/Modal/Modal";
+import { Select } from "../shared/Select/Select";
+import { TextInput } from "../shared/TextInput/TextInput";
 import styles from "./CreateSprintModal.module.css";
 
 interface CreateSprintModalProps {

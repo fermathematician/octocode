@@ -5,8 +5,8 @@ import { ErrorState } from "../../components/shared/ErrorState/ErrorState";
 import { Select } from "../../components/shared/Select/Select";
 import { Spinner } from "../../components/shared/Spinner/Spinner";
 import { formatDateRange } from "../../shared/date";
+import { CreateSprintModal } from "../../components/sprints/CreateSprintModal";
 import { useKanban } from "./hooks/useKanban";
-import { CreateSprintModal } from "./components/CreateSprintModal";
 import { KanbanBoard } from "./components/KanbanBoard";
 import styles from "./index.module.css";
 

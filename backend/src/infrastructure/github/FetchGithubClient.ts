@@ -227,12 +227,24 @@ export class FetchGithubClient implements GithubClient {
     owner: string,
     repo: string,
   ): Promise<GithubBranchSummary[]> {
-    const branches = await this.request<GithubApiBranch[]>(
-      `/repos/${owner}/${repo}/branches?per_page=100`,
-      accessToken,
-    );
+    const branches: GithubBranchSummary[] = [];
+    const perPage = 100;
+    const maxPages = 10;
 
-    return branches.map((branch) => ({ name: branch.name }));
+    for (let page = 1; page <= maxPages; page += 1) {
+      const pageBranches = await this.request<GithubApiBranch[]>(
+        `/repos/${owner}/${repo}/branches?per_page=${perPage}&page=${page}`,
+        accessToken,
+      );
+
+      branches.push(...pageBranches.map((branch) => ({ name: branch.name })));
+
+      if (pageBranches.length < perPage) {
+        break;
+      }
+    }
+
+    return branches;
   }
 
   async listCommits(

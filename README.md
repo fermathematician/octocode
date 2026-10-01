@@ -326,7 +326,7 @@ from `VITE_API_URL` (default `http://localhost:3333`); `frontend/.env.example` d
 `ScreenId` (in `components/layout/views.ts`) is either a global view or `"project"`:
 
 ```ts
-type GeneralViewId = "today" | "kanban" | "graph" | "calendar";
+type GeneralViewId = "today" | "sprints" | "kanban" | "graph" | "calendar";
 type ScreenId = GeneralViewId | "project";
 ```
 
@@ -335,7 +335,7 @@ The sidebar groups global views and lists projects:
 
 ```text
 Plan     →  Today, Calendar
-Sprint   →  Kanban, Graph
+Sprint   →  Sprints, Kanban, Graph
 Projects →  All projects | <project 1> … <project N>
 <user>   →  avatar + login + sign out
 ```
@@ -361,7 +361,7 @@ frontend/src/
 │   ├── http.ts                  # apiFetch + ApiError + getApiBaseUrl (credentials: include)
 │   ├── projects.ts              # getProjects()
 │   ├── stories.ts               # getStories, createStory, assignStoryBranch, updateStoryStatus
-│   ├── sprints.ts               # getSprints()
+│   ├── sprints.ts               # getSprints, createSprint, deleteSprint
 │   └── calendar-events.ts       # getCalendarEvents, createCalendarEvent
 │
 ├── auth/
@@ -372,15 +372,19 @@ frontend/src/
 │
 ├── components/
 │   ├── layout/                  # AppShell, ProjectSidebar, views.ts
+│   ├── sprints/                 # CreateSprintModal (shared by Sprints + Kanban)
 │   └── shared/                  # Badge, Button, EmptyState, ErrorState, Modal, Select, Spinner, TextInput
 │
-└── pages/                       # today, calendar, kanban, graph, project(backlog + progress)
+└── pages/                       # today, sprints, calendar, kanban, graph, project(backlog + progress)
 ```
 
 ### 5.5 Screens
 
 - **Login** (`auth/LoginScreen`): "Sign in with GitHub" → redirects to `GET /auth/github`.
 - **Today** (`pages/today`): spreadsheet of today's calendar items + quick reminder form.
+- **Sprints** (`pages/sprints`): every sprint across projects with status
+  (upcoming/active/past), points/story progress, a project filter, and **Generate sprint** /
+  **Delete** actions.
 - **Calendar** (`pages/calendar`): month grid, day panel, add event.
 - **Kanban** (`pages/kanban`): 5 status columns, drag-and-drop, project filter, and a **Generate
   sprint** button.
@@ -891,6 +895,9 @@ The detailed gap analysis and phased plan live in **§14**. What remains:
 - **Branch picker + sprint generation**: the create-story branch is now chosen from the project's
   fetched GitHub branches (searchable, required) instead of a title-derived slug; the Kanban screen
   gained a **Generate sprint** button. Burndown is capped to 7 days.
+- **Sprints screen + branch fetching**: added a global **Sprints** screen (sidebar → Sprint) listing
+  every sprint with progress and Generate/Delete; branch fetching is now paginated (backend) and the
+  picker shows up to 100 options (was 8).
 
 ---
 
@@ -967,7 +974,8 @@ These are deliberately documented so future work does not rediscover them.
 
 - **Commit sync is manual** (`POST /github/stories/:storyId/sync-commits`); nothing calls it on a
   schedule, and the UI has no button yet. Commits show up once synced.
-- **Only the first page of commits/repos** is fetched (`per_page=100`); no pagination.
+- **Repos and commits fetch only the first page** (`per_page=100`); no pagination. **Branches are
+  paginated** (up to 10 pages / 1000 branches) and the branch picker shows up to 100 matches.
 - **`repo` scope** grants broad access to the user's repositories.
 - **GitHub repositories listing** uses `/user/repos` (repos the user can access), sorted by update.
 - **Author attribution** falls back to the commit author name when GitHub does not map a user.

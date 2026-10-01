@@ -11,7 +11,7 @@ interface BranchPickerProps {
   placeholder?: string;
 }
 
-const MAX_OPTIONS = 8;
+const MAX_OPTIONS = 100;
 
 export function BranchPicker({
   id,

@@ -19,3 +19,7 @@ export function createSprint(input: CreateSprintInput): Promise<Sprint> {
     body: JSON.stringify(input),
   });
 }
+
+export function deleteSprint(sprintId: string): Promise<void> {
+  return apiFetch<void>(`/sprints/${sprintId}`, { method: "DELETE" });
+}
