@@ -51,7 +51,7 @@ export function CreateStoryForm({
     ? (Number(storyPoints) as StoryPoints)
     : DEFAULT_POINTS;
 
-  const { branches } = useProjectBranches(projectId);
+  const { branches, error: branchesError } = useProjectBranches(projectId);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -117,6 +117,7 @@ export function CreateStoryForm({
         value={branch}
         onChange={setBranch}
         branches={branches}
+        hint={branchesError ?? undefined}
         placeholder="feat/my-story"
         error={errors.branch}
       />

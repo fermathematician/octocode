@@ -6,7 +6,7 @@ import {
 } from "../../../domain/story";
 import type { Project, Story } from "../../../domain/types";
 import { BranchForm } from "./BranchForm";
-import { CommitList } from "./CommitList";
+import { CommitList } from "../../../components/stories/CommitList";
 import styles from "./StoryDetailModal.module.css";
 
 interface StoryDetailModalProps {

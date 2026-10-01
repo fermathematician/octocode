@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { getProjectBranches } from "../../../api/github";
+import { ApiError } from "../../../api/http";
 
 interface UseProjectBranchesResult {
   branches: string[];
   loading: boolean;
+  error: string | null;
 }
 
 export function useProjectBranches(
@@ -11,6 +13,7 @@ export function useProjectBranches(
 ): UseProjectBranchesResult {
   const [branches, setBranches] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!projectId) {
@@ -22,16 +25,21 @@ export function useProjectBranches(
 
     async function load() {
       setLoading(true);
+      setError(null);
 
       try {
         const result = await getProjectBranches(id);
         if (!cancelled) {
           setBranches(result);
         }
-      } catch {
-        // No linked repository, no GitHub token, or offline: fall back to free text.
+      } catch (caught) {
         if (!cancelled) {
           setBranches([]);
+          setError(
+            caught instanceof ApiError
+              ? caught.message
+              : "Could not load branches. Check the GitHub token permissions.",
+          );
         }
       } finally {
         if (!cancelled) {
@@ -47,5 +55,5 @@ export function useProjectBranches(
     };
   }, [projectId]);
 
-  return { branches, loading };
+  return { branches, loading, error };
 }

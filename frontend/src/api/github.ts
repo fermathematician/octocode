@@ -15,3 +15,16 @@ export function getGithubRepositories(): Promise<GithubRepositorySummary[]> {
 export function getProjectBranches(projectId: string): Promise<string[]> {
   return apiFetch<string[]>(`/github/projects/${projectId}/branches`);
 }
+
+export interface SyncStoryCommitsResult {
+  commitCount: number;
+}
+
+export function syncStoryCommits(
+  storyId: string,
+): Promise<SyncStoryCommitsResult> {
+  return apiFetch<SyncStoryCommitsResult>(
+    `/github/stories/${storyId}/sync-commits`,
+    { method: "POST" },
+  );
+}

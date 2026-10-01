@@ -8,6 +8,7 @@ interface BranchPickerProps {
   onChange: (value: string) => void;
   branches: string[];
   error?: string;
+  hint?: string;
   placeholder?: string;
 }
 
@@ -20,6 +21,7 @@ export function BranchPicker({
   onChange,
   branches,
   error,
+  hint,
   placeholder,
 }: BranchPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -84,6 +86,11 @@ export function BranchPicker({
           </ul>
         ) : null}
       </div>
+      {branches.length === 0 ? (
+        <p className={styles.hint}>
+          {hint ?? "No branches loaded — type a branch name."}
+        </p>
+      ) : null}
       {error ? (
         <p className={styles.error} id={errorId}>
           {error}

@@ -22,7 +22,7 @@ export function BranchForm({
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { branches } = useProjectBranches(projectId);
+  const { branches, error: branchesError } = useProjectBranches(projectId);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -55,6 +55,7 @@ export function BranchForm({
         value={branch}
         onChange={setBranch}
         branches={branches}
+        hint={branchesError ?? undefined}
         placeholder="feat/story-name"
         error={fieldError ?? undefined}
       />

@@ -373,6 +373,7 @@ frontend/src/
 ├── components/
 │   ├── layout/                  # AppShell, ProjectSidebar, views.ts
 │   ├── sprints/                 # CreateSprintModal (shared by Sprints + Kanban)
+│   ├── stories/                 # CommitList, StoryCommitsModal
 │   └── shared/                  # Badge, Button, EmptyState, ErrorState, Modal, Select, Spinner, TextInput
 │
 └── pages/                       # today, sprints, calendar, kanban, graph, project(backlog + progress)
@@ -386,8 +387,9 @@ frontend/src/
   (upcoming/active/past), points/story progress, a project filter, and **Generate sprint** /
   **Delete** actions.
 - **Calendar** (`pages/calendar`): month grid, day panel, add event.
-- **Kanban** (`pages/kanban`): 5 status columns, drag-and-drop, project filter, and a **Generate
-  sprint** button.
+- **Kanban** (`pages/kanban`): 5 status columns, drag-and-drop, and a project filter. Click a card
+  to open a modal with its branch, commit count, the full commit list (with dates), and a **Sync
+  commits** button.
 - **Graph** (`pages/graph`): burndown chart + sprint header, project filter.
 - **Project** (`pages/project`): tabs `Backlog` (story CRUD/branch/commits) and `Progress`
   (sprint history). When "All projects" is selected, an **Add project** button opens a modal that
@@ -413,8 +415,9 @@ Rules (enforced by convention):
 - **Story points** — `[1, 2, 3, 5, 8, 13, 21]`.
 - **Branch field** — the New story form fetches the project's GitHub branches and shows them in a
   searchable picker; the branch is required and is **not** derived from the story title.
-- **Sprint generation** — the Kanban screen has a **Generate sprint** button that creates a one-week
-  sprint (`POST /sprints`) for a chosen project.
+- **Sprint generation** — the **Sprints** screen has a **Generate sprint** button that creates a
+  one-week sprint (`POST /sprints`, start + 6 days) for a chosen project. (Sprint generation lives
+  only on that screen.)
 - **Status** — kanban DnD or `PATCH /stories/:id/status`; entering `refactor` sets `completedAt`.
 - **Burndown** — derived from sprint dates and `completedAt` (see `domain/sprint.ts`), capped to a
   7-day window (one week); with several projects the graph uses the 7 days starting from the
@@ -898,6 +901,12 @@ The detailed gap analysis and phased plan live in **§14**. What remains:
 - **Sprints screen + branch fetching**: added a global **Sprints** screen (sidebar → Sprint) listing
   every sprint with progress and Generate/Delete; branch fetching is now paginated (backend) and the
   picker shows up to 100 options (was 8).
+- **Sprint generation location + branch diagnostics**: sprint generation now lives **only** on the
+  Sprints screen (removed from Kanban); branch-fetch failures surface the GitHub reason
+  (401/403/404/409), and the picker shows a hint when no branches load.
+- **Story commits viewer**: clicking a story card on the Kanban opens a modal with the branch,
+  commit count, and the full commit list (message, SHA, author, date) plus a **Sync commits** button;
+  `CommitList` was extracted to `components/stories/` and reused by the backlog detail modal.
 
 ---
 
@@ -972,10 +981,14 @@ These are deliberately documented so future work does not rediscover them.
 
 ### 13.3 GitHub integration
 
-- **Commit sync is manual** (`POST /github/stories/:storyId/sync-commits`); nothing calls it on a
-  schedule, and the UI has no button yet. Commits show up once synced.
+- **Commit sync is manual** (`POST /github/stories/:storyId/sync-commits`), but the story modal now
+  has a **Sync commits** button; there is no schedule/webhook. Commits show up once synced.
 - **Repos and commits fetch only the first page** (`per_page=100`); no pagination. **Branches are
   paginated** (up to 10 pages / 1000 branches) and the branch picker shows up to 100 matches.
+- **Branch access needs the right token permissions**: a classic PAT needs the `repo` scope; a
+  fine-grained PAT needs **Contents (read)** + **Metadata (read)**. Without it GitHub returns
+  403/404, which is now surfaced in the branch picker (`hint`) instead of an empty list. A `409`
+  means the repository has no branches yet (empty repo).
 - **`repo` scope** grants broad access to the user's repositories.
 - **GitHub repositories listing** uses `/user/repos` (repos the user can access), sorted by update.
 - **Author attribution** falls back to the commit author name when GitHub does not map a user.

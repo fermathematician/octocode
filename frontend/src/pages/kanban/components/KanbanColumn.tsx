@@ -9,6 +9,7 @@ interface KanbanColumnProps {
   stories: Story[];
   projectNames: Record<string, string>;
   onMove: (storyId: string, status: StoryStatus) => void;
+  onSelect: (story: Story) => void;
 }
 
 export function KanbanColumn({
@@ -16,6 +17,7 @@ export function KanbanColumn({
   stories,
   projectNames,
   onMove,
+  onSelect,
 }: KanbanColumnProps) {
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -58,6 +60,7 @@ export function KanbanColumn({
             key={story.id}
             story={story}
             projectName={projectNames[story.projectId]}
+            onSelect={() => onSelect(story)}
           />
         ))}
       </div>

@@ -1,11 +1,10 @@
 import { useMemo, useState } from "react";
-import { Button } from "../../components/shared/Button/Button";
 import { EmptyState } from "../../components/shared/EmptyState/EmptyState";
 import { ErrorState } from "../../components/shared/ErrorState/ErrorState";
 import { Select } from "../../components/shared/Select/Select";
 import { Spinner } from "../../components/shared/Spinner/Spinner";
+import { StoryCommitsModal } from "../../components/stories/StoryCommitsModal";
 import { formatDateRange } from "../../shared/date";
-import { CreateSprintModal } from "../../components/sprints/CreateSprintModal";
 import { useKanban } from "./hooks/useKanban";
 import { KanbanBoard } from "./components/KanbanBoard";
 import styles from "./index.module.css";
@@ -24,6 +23,7 @@ export function KanbanPage() {
     loading,
     error,
     moveStory,
+    syncCommits,
     reload,
   } = useKanban();
 
@@ -38,7 +38,12 @@ export function KanbanPage() {
   ];
 
   const hasStories = columns.some((column) => column.stories.length > 0);
-  const [isCreatingSprint, setIsCreatingSprint] = useState(false);
+  const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
+
+  const selectedStory =
+    columns
+      .flatMap((column) => column.stories)
+      .find((story) => story.id === selectedStoryId) ?? null;
 
   return (
     <section className={styles.page}>
@@ -57,24 +62,16 @@ export function KanbanPage() {
             {remainingPoints} of {totalPoints} pts remaining
           </p>
         </div>
-        <div className={styles.controls}>
-          <div className={styles.filter}>
-            <Select
-              id="kanban-project-filter"
-              label="Project"
-              value={projectFilter ?? ALL_PROJECTS}
-              options={projectOptions}
-              onChange={(value) =>
-                setProjectFilter(value === ALL_PROJECTS ? null : value)
-              }
-            />
-          </div>
-          <Button
-            onClick={() => setIsCreatingSprint(true)}
-            disabled={projects.length === 0}
-          >
-            Generate sprint
-          </Button>
+        <div className={styles.filter}>
+          <Select
+            id="kanban-project-filter"
+            label="Project"
+            value={projectFilter ?? ALL_PROJECTS}
+            options={projectOptions}
+            onChange={(value) =>
+              setProjectFilter(value === ALL_PROJECTS ? null : value)
+            }
+          />
         </div>
       </header>
 
@@ -105,18 +102,16 @@ export function KanbanPage() {
           onMove={(storyId, status) => {
             void moveStory(storyId, status);
           }}
+          onSelect={(story) => setSelectedStoryId(story.id)}
         />
       ) : null}
 
-      {isCreatingSprint ? (
-        <CreateSprintModal
-          projects={projects}
-          defaultProjectId={projectFilter}
-          onClose={() => setIsCreatingSprint(false)}
-          onCreated={() => {
-            setIsCreatingSprint(false);
-            reload();
-          }}
+      {selectedStory ? (
+        <StoryCommitsModal
+          story={selectedStory}
+          projectName={projectNames[selectedStory.projectId]}
+          onClose={() => setSelectedStoryId(null)}
+          onSyncCommits={() => syncCommits(selectedStory.id)}
         />
       ) : null}
     </section>

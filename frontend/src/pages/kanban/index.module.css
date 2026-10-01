@@ -23,12 +23,6 @@
   font-size: 0.9rem;
 }
 
-.controls {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-3);
-}
-
 .filter {
   min-width: 200px;
 }

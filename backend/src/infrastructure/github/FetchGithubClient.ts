@@ -160,8 +160,29 @@ export class FetchGithubClient implements GithubClient {
     if (!response.ok) {
       if (response.status === 401) {
         throw new AppError(
-          "GitHub rejected the access token. Check that it is valid, not expired, and (for classic tokens) has the `repo` and `read:user` scopes.",
+          "GitHub rejected the access token. Check that it is valid and not expired (classic tokens need the `repo` and `read:user` scopes).",
           401,
+        );
+      }
+
+      if (response.status === 403) {
+        throw new AppError(
+          "GitHub denied access. Your token may lack the required permissions — classic PAT: `repo`; fine-grained PAT: Contents (read) + Metadata (read).",
+          403,
+        );
+      }
+
+      if (response.status === 404) {
+        throw new AppError(
+          "GitHub returned 404: the repository was not found or your token cannot access it.",
+          404,
+        );
+      }
+
+      if (response.status === 409) {
+        throw new AppError(
+          "GitHub says this repository has no branches yet (it may be empty).",
+          409,
         );
       }
 
