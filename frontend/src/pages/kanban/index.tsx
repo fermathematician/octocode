@@ -1,10 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Button } from "../../components/shared/Button/Button";
 import { EmptyState } from "../../components/shared/EmptyState/EmptyState";
 import { ErrorState } from "../../components/shared/ErrorState/ErrorState";
 import { Select } from "../../components/shared/Select/Select";
 import { Spinner } from "../../components/shared/Spinner/Spinner";
 import { formatDateRange } from "../../shared/date";
 import { useKanban } from "./hooks/useKanban";
+import { CreateSprintModal } from "./components/CreateSprintModal";
 import { KanbanBoard } from "./components/KanbanBoard";
 import styles from "./index.module.css";
 
@@ -36,6 +38,7 @@ export function KanbanPage() {
   ];
 
   const hasStories = columns.some((column) => column.stories.length > 0);
+  const [isCreatingSprint, setIsCreatingSprint] = useState(false);
 
   return (
     <section className={styles.page}>
@@ -54,16 +57,24 @@ export function KanbanPage() {
             {remainingPoints} of {totalPoints} pts remaining
           </p>
         </div>
-        <div className={styles.filter}>
-          <Select
-            id="kanban-project-filter"
-            label="Project"
-            value={projectFilter ?? ALL_PROJECTS}
-            options={projectOptions}
-            onChange={(value) =>
-              setProjectFilter(value === ALL_PROJECTS ? null : value)
-            }
-          />
+        <div className={styles.controls}>
+          <div className={styles.filter}>
+            <Select
+              id="kanban-project-filter"
+              label="Project"
+              value={projectFilter ?? ALL_PROJECTS}
+              options={projectOptions}
+              onChange={(value) =>
+                setProjectFilter(value === ALL_PROJECTS ? null : value)
+              }
+            />
+          </div>
+          <Button
+            onClick={() => setIsCreatingSprint(true)}
+            disabled={projects.length === 0}
+          >
+            Generate sprint
+          </Button>
         </div>
       </header>
 
@@ -93,6 +104,18 @@ export function KanbanPage() {
           projectNames={projectNames}
           onMove={(storyId, status) => {
             void moveStory(storyId, status);
+          }}
+        />
+      ) : null}
+
+      {isCreatingSprint ? (
+        <CreateSprintModal
+          projects={projects}
+          defaultProjectId={projectFilter}
+          onClose={() => setIsCreatingSprint(false)}
+          onCreated={() => {
+            setIsCreatingSprint(false);
+            reload();
           }}
         />
       ) : null}

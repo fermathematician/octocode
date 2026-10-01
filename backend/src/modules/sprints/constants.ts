@@ -1,2 +1,3 @@
-/// All Octocode sprints are one week long: start + 6 days = end (inclusive).
-export const SPRINT_LENGTH_DAYS = 6;
+/// All Octocode sprints last exactly one week (7 days, inclusive of both ends):
+/// `startDate` through `startDate + 6`.
+export const SPRINT_DURATION_DAYS = 7;

@@ -2,10 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Button } from "../../../components/shared/Button/Button";
 import { Select } from "../../../components/shared/Select/Select";
 import { TextInput } from "../../../components/shared/TextInput/TextInput";
-import {
-  branchNameFromTitle,
-  STORY_PRIORITY_LABELS,
-} from "../../../domain/story";
+import { STORY_PRIORITY_LABELS } from "../../../domain/story";
 import {
   STORY_POINTS,
   STORY_PRIORITIES,
@@ -44,7 +41,6 @@ export function CreateStoryForm({
   );
   const [title, setTitle] = useState("");
   const [branch, setBranch] = useState("");
-  const [isBranchEdited, setIsBranchEdited] = useState(false);
   const [storyPoints, setStoryPoints] = useState<string>(String(DEFAULT_POINTS));
   const [priority, setPriority] = useState<StoryPriority>("medium");
   const [errors, setErrors] = useState<CreateStoryFormErrors>({});
@@ -56,19 +52,6 @@ export function CreateStoryForm({
     : DEFAULT_POINTS;
 
   const { branches } = useProjectBranches(projectId);
-
-  function handleTitleChange(value: string) {
-    setTitle(value);
-
-    if (!isBranchEdited) {
-      setBranch(value.trim() ? branchNameFromTitle(value) : "");
-    }
-  }
-
-  function handleBranchChange(value: string) {
-    setBranch(value);
-    setIsBranchEdited(true);
-  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -96,7 +79,7 @@ export function CreateStoryForm({
         title: title.trim(),
         storyPoints: points,
         priority,
-        branch: branch.trim() || undefined,
+        branch: branch.trim(),
       });
     } catch {
       setFormError("Unable to create the story. Please try again.");
@@ -123,7 +106,7 @@ export function CreateStoryForm({
         id="create-story-title"
         label="Story name"
         value={title}
-        onChange={handleTitleChange}
+        onChange={setTitle}
         placeholder="As a user, I want…"
         error={errors.title}
       />
@@ -132,7 +115,7 @@ export function CreateStoryForm({
         id="create-story-branch"
         label="Branch"
         value={branch}
-        onChange={handleBranchChange}
+        onChange={setBranch}
         branches={branches}
         placeholder="feat/my-story"
         error={errors.branch}

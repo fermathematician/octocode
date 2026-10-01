@@ -382,7 +382,8 @@ frontend/src/
 - **Login** (`auth/LoginScreen`): "Sign in with GitHub" → redirects to `GET /auth/github`.
 - **Today** (`pages/today`): spreadsheet of today's calendar items + quick reminder form.
 - **Calendar** (`pages/calendar`): month grid, day panel, add event.
-- **Kanban** (`pages/kanban`): 5 status columns, drag-and-drop, project filter.
+- **Kanban** (`pages/kanban`): 5 status columns, drag-and-drop, project filter, and a **Generate
+  sprint** button.
 - **Graph** (`pages/graph`): burndown chart + sprint header, project filter.
 - **Project** (`pages/project`): tabs `Backlog` (story CRUD/branch/commits) and `Progress`
   (sprint history). When "All projects" is selected, an **Add project** button opens a modal that
@@ -406,10 +407,14 @@ Rules (enforced by convention):
 
 - **Backlog ordering** — priority (`critical → high → medium → low`), then `createdAt` ascending.
 - **Story points** — `[1, 2, 3, 5, 8, 13, 21]`.
-- **Branch field** — the New story form prefills `feat/<slug(title)>` from the title; editable; left
-  empty, the backend generates a unique branch.
+- **Branch field** — the New story form fetches the project's GitHub branches and shows them in a
+  searchable picker; the branch is required and is **not** derived from the story title.
+- **Sprint generation** — the Kanban screen has a **Generate sprint** button that creates a one-week
+  sprint (`POST /sprints`) for a chosen project.
 - **Status** — kanban DnD or `PATCH /stories/:id/status`; entering `refactor` sets `completedAt`.
-- **Burndown** — derived from sprint dates and `completedAt` (see `domain/sprint.ts`).
+- **Burndown** — derived from sprint dates and `completedAt` (see `domain/sprint.ts`), capped to a
+  7-day window (one week); with several projects the graph uses the 7 days starting from the
+  earliest active sprint.
 
 ### 5.8 Styling & design tokens
 
@@ -564,7 +569,7 @@ All routes except `/health` and the two OAuth endpoints require a valid session 
 | PATCH | `/projects/:projectId` | required | Update `{ name?, color? }` |
 | DELETE | `/projects/:projectId` | required | Delete a project (cascade) → 204 |
 | GET | `/sprints?projectId=&limit=&cursor=` | required | List sprints (paginated) |
-| POST | `/sprints` | required | Create sprint `{ projectId, name, startDate }` (endDate = start + 6d) |
+| POST | `/sprints` | required | Create sprint `{ projectId, name, startDate }` (7-day window: `endDate = start + 6d`) |
 | PATCH | `/sprints/:sprintId` | required | Update `{ name?, startDate? }` (endDate recomputed) |
 | DELETE | `/sprints/:sprintId` | required | Delete a sprint (stories keep, `sprintId` set null) → 204 |
 | GET | `/stories?projectId=&status=&priority=&limit=&cursor=` | required | List stories (with commits, paginated) |
@@ -644,6 +649,7 @@ Frontend LoginScreen
 | `TOKEN_ENCRYPTION_KEY` | yes | — | base64 32-byte key; app **fails fast** if missing/invalid |
 | `PORT` | no | `3333` | HTTP port |
 | `NODE_ENV` | no | `development` | Environment |
+| `TRUST_PROXY` | no | `false` | Set `true` behind a reverse proxy (Render) for correct client IPs |
 | `FRONTEND_URL` | no | `http://localhost:5173` | Post-OAuth redirect target |
 | `CORS_ORIGIN` | no | `http://localhost:5173` | Allowed CORS origin (credentials) |
 | `GITHUB_CLIENT_ID` | for login | `""` | OAuth App client id |
@@ -676,6 +682,30 @@ Generate a key:
   `P2025` → 404 (not found), `P2003` → 409 (related-record conflict). Unknown Prisma errors stay 500.
 - Malformed JSON bodies are rejected with `400`.
 - Rate-limited requests return `429` with a `Retry-After` header.
+
+### 6.11 Google Calendar sync
+
+Two-way sync between Octocode `CalendarEvent`s and a linked Google Calendar (see `google_sync.md`
+for deployment).
+
+- **Link** (`GET /calendar/google` → Google → `GET /calendar/google/callback`, both `requireAuth`):
+  stores an `OAuthAccount(provider=GOOGLE)` with the access **and refresh** tokens encrypted;
+  `DELETE /calendar/google` unlinks and deletes imported Google events.
+- **Token refresh**: `GoogleTokenProvider` refreshes the access token on demand (60s skew) and
+  persists the new token.
+- **Pull**: `SyncCalendarService` lists events with an incremental **`syncToken`** (stored in
+  `CalendarSyncState`); a `410` triggers a full resync. Timed events are upserted by
+  `[userId, externalId]`; `cancelled` events are deleted locally.
+- **Push**: locally-created events with no `externalId` are created in Google; local deletes
+  propagate via `DeleteCalendarEventService`.
+- **Conflict policy**: local wins — pulled Google data never overwrites a locally-owned event.
+- **Schedule**: `server.ts` runs `SyncAllCalendarsService` every `GOOGLE_CALENDAR_SYNC_INTERVAL_MS`;
+  `POST /calendar/google/sync` runs it on demand.
+- **UI**: the Calendar page has a sync bar (connect/disconnect, sync now, last-synced, result) —
+  in-app notifications instead of Google push notifications.
+- **Scope**: `https://www.googleapis.com/auth/calendar.events`.
+- **Sprints** are exactly 7 days (`SPRINT_DURATION_DAYS = 7`).
+- **Limitations**: §13.6.
 
 ---
 
@@ -858,6 +888,9 @@ The detailed gap analysis and phased plan live in **§14**. What remains:
   incremental `syncToken` (pull + push, local-wins on conflicts), delete propagation, a manual
   `POST /calendar/google/sync`, a background interval, and a Calendar sync bar in the SPA.
   Migration `20260930220000_google_calendar_sync`.
+- **Branch picker + sprint generation**: the create-story branch is now chosen from the project's
+  fetched GitHub branches (searchable, required) instead of a title-derived slug; the Kanban screen
+  gained a **Generate sprint** button. Burndown is capped to 7 days.
 
 ---
 

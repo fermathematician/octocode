@@ -219,7 +219,7 @@ describe("UpdateStoryStatusService", () => {
 });
 
 describe("CreateSprintService", () => {
-  it("computes a one-week (6 day) window", async () => {
+  it("computes a 7-day window", async () => {
     const { store, projects, sprints } = setup();
     const user = store.seedUser();
     const project = store.seedProject(user.id);

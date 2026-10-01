@@ -52,11 +52,10 @@ export function validateCreateStory(
     errors.title = "Story name is required.";
   }
 
-  if (values.branch.trim()) {
-    const branchError = validateBranchName(values.branch);
-    if (branchError) {
-      errors.branch = branchError;
-    }
+  const branchError = validateBranchName(values.branch);
+
+  if (branchError) {
+    errors.branch = branchError;
   }
 
   return errors;

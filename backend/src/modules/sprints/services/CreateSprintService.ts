@@ -2,7 +2,7 @@ import { AppError } from "../../../shared/appError.js";
 import { addDays, fromIsoDate } from "../../../shared/dates.js";
 import { toSprintDto, type SprintDto } from "../../../shared/presenters.js";
 import type { ProjectRepository } from "../../projects/repositories/ProjectRepository.js";
-import { SPRINT_LENGTH_DAYS } from "../constants.js";
+import { SPRINT_DURATION_DAYS } from "../constants.js";
 import type { SprintRepository } from "../repositories/SprintRepository.js";
 import type { CreateSprintInput } from "../validation/sprint.schema.js";
 
@@ -27,7 +27,7 @@ export class CreateSprintService {
       projectId: input.projectId,
       name: input.name,
       startDate,
-      endDate: addDays(startDate, SPRINT_LENGTH_DAYS),
+      endDate: addDays(startDate, SPRINT_DURATION_DAYS - 1),
     });
 
     return toSprintDto(sprint);

@@ -1,6 +1,10 @@
 import { addDays, daysBetween, parseIsoDate, toIsoDate } from "../shared/date";
 import type { Sprint, Story } from "./types";
 
+/// A sprint is one week; the burndown never spans more than 7 days, even when the
+/// graph combines active sprints from several projects.
+const SPRINT_DURATION_DAYS = 7;
+
 export interface BurndownPoint {
   day: number;
   ideal: number;
@@ -65,7 +69,10 @@ export function buildBurndown(
     (latest, sprint) => (sprint.endDate > latest ? sprint.endDate : latest),
     sprints[0].endDate,
   );
-  const totalDays = Math.max(1, daysBetween(start, end));
+  const totalDays = Math.min(
+    SPRINT_DURATION_DAYS - 1,
+    Math.max(1, daysBetween(start, end)),
+  );
   const totalPoints = stories.reduce(
     (sum, story) => sum + story.storyPoints,
     0,

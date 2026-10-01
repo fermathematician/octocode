@@ -13,6 +13,10 @@ import { verifyOrigin } from "./http/middleware/verifyOrigin.js";
 
 export const app = express();
 
+if (env.trustProxy) {
+  app.set("trust proxy", 1);
+}
+
 app.use(requestLogger);
 app.use(cors);
 app.use(verifyOrigin);
