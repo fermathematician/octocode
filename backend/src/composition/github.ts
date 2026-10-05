@@ -76,7 +76,6 @@ const syncRepositoriesService = new SyncRepositoriesService(
     shared.githubRepositoryRepository,
     shared.storyRepository,
     shared.sprintRepository,
-    shared.commitRepository,
     shared.oauthAccountRepository,
     shared.tokenCipher,
     shared.githubClient,

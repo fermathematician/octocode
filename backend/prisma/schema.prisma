@@ -195,12 +195,12 @@ model Commit {
   message      String
   authorLogin  String?
   authorName   String?
-  branch       String?
+  branch       String
   committedAt  DateTime
   url          String?
   createdAt    DateTime         @default(now())
 
-  @@unique([repositoryId, sha])
+  @@unique([repositoryId, branch, sha])
   @@index([storyId])
 }
 

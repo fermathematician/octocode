@@ -55,6 +55,7 @@ interface GithubApiComparison {
   status: string;
   ahead_by?: number;
   behind_by?: number;
+  commits?: GithubApiCommit[];
 }
 
 const API_BASE = "https://api.github.com";
@@ -291,6 +292,9 @@ export class FetchGithubClient implements GithubClient {
       status: comparison.status,
       aheadBy: comparison.ahead_by ?? 0,
       behindBy: comparison.behind_by ?? 0,
+      commits: (comparison.commits ?? []).map((commit) =>
+        this.toCommitSummary(commit),
+      ),
     };
   }
 
@@ -305,13 +309,17 @@ export class FetchGithubClient implements GithubClient {
       accessToken,
     );
 
-    return commits.map((commit) => ({
+    return commits.map((commit) => this.toCommitSummary(commit));
+  }
+
+  private toCommitSummary(commit: GithubApiCommit): GithubCommitSummary {
+    return {
       sha: commit.sha,
       message: commit.commit.message.split("\n")[0] ?? "",
       authorLogin: commit.author?.login ?? null,
       authorName: commit.commit.author?.name ?? null,
       committedAt: new Date(commit.commit.author?.date ?? Date.now()),
       url: commit.html_url,
-    }));
+    };
   }
 }

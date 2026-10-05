@@ -437,9 +437,10 @@ Rules (enforced by convention):
   The list merges **GitHub** branches with **local** ones reported by the git hook (§6.13); local
   entries carry a `local` tag. A branch that is neither pushed nor reported by the hook cannot be
   listed — the picker is a combobox, so type the name instead.
-- **Commit sync source** — a story's commits come from its branch; if that branch is fully merged into
-  the default branch (or was never pushed), the **default branch** is used instead, so a
-  “merge locally, push `main`” workflow still shows the merged work.
+- **Commit sync source** — a story shows only the commits that belong to its branch: the commits
+  on `story.branch` that are not already on the default branch. A story whose branch *is* the
+  default branch shows all of its commits; a branch that was never pushed (or was deleted) shows
+  nothing.
 - **Sprint generation** — the **Sprints** screen has a **Generate sprint** button that creates a
   sprint with a chosen start and end date (`POST /sprints`). A sprint spans every project. (Sprint
   generation lives only on that screen.)
@@ -520,7 +521,7 @@ Enums: `OAuthProvider`, `StoryPriority`, `StoryStatus`, `CalendarEventType`.
 | `GithubRepository` | Linked repo | `projectId` unique; `[userId, repoId]` unique (per user); `owner`/`name` = GitHub repo; `installationId?` |
 | `Sprint` | Time box across all projects | `ownerId → User`; `startDate`, `endDate` |
 | `Story` | Unit of work | `[projectId, branch]` unique; `priority`, `status`, `imported`, `completedAt`; has commits |
-| `Commit` | A commit on a story branch | `[repositoryId, sha]` unique; `storyId? → Story`; `branch` |
+| `Commit` | A commit on a branch | `[repositoryId, branch, sha]` unique; `storyId? → Story` |
 | `CalendarEvent` | Planner item | `userId → User`; `type`, `date`, `startTime`; `source` (LOCAL/GOOGLE), `externalId`, `externalUpdatedAt`; `[userId, externalId]` unique |
 | `GithubWebhookEvent` | Webhook idempotency | `deliveryId` unique — **reserved, not used yet** (§13) |
 
@@ -758,8 +759,10 @@ synchronised four ways:
   `GITHUB_WEBHOOK_SECRET`) resyncs a repository on `push`. Requires a **repository webhook** with the
   same secret and a publicly reachable URL (e.g. Render) — it does not work against `localhost`.
 
-Each sync resolves which branch to read (`SyncStoryCommitsService`): the story branch when it has
-unmerged commits, otherwise the repository’s **default branch** (merged or missing branch).
+Each story stores only its **own branch's** commits (`SyncStoryCommitsService`): the commits on
+`story.branch` that are not already on the repository's default branch
+(`GithubClient.compareBranches().commits`). If the story's branch *is* the default branch, all of its
+commits are stored. A branch that was never pushed or was deleted stores nothing.
 `SyncCommitsService` skips a failing story instead of aborting the batch.
 
 **Branch cards.** `SyncBranchStoriesService` lists the repository's branches and creates a card for
@@ -775,11 +778,11 @@ from your disk. The refresh happens automatically (Kanban/Backlog open, the back
 
 | You did this | What the story shows after a sync |
 | --- | --- |
-| Pushed the branch, it has commits `main` lacks | the branch’s newest 100 commits (its own + the `main` commits it is based on) |
-| Pushed the branch, but it is still identical to `main` (fresh copy) | `main`’s commits — there is nothing unique on the branch yet |
+| Pushed the branch, it has commits `main` lacks | only those branch commits (not the `main` commits it is based on) |
+| Pushed the branch, but it is still identical to `main` (fresh copy) | nothing — the branch has no commits of its own |
 | Committed **locally without pushing** | nothing new; GitHub does not have those commits |
-| Merged the branch into `main` and pushed `main` | `main`’s commits (merge-aware fallback) |
-| Branch deleted on GitHub | `main`’s commits (compare answers 404) |
+| Merged the branch into `main` and pushed `main` | nothing on the feature card (its commits are already on `main`); a story whose branch *is* `main` shows `main`'s commits |
+| Branch deleted on GitHub | nothing (GitHub cannot see the branch) |
 
 So the normal flow works: create the story with its branch, push the branch, commit, push again — the
 commits show up on the next sync. **Pushing is the step that makes commits visible**; a local-only
@@ -1113,6 +1116,10 @@ The detailed gap analysis and phased plan live in **§14**. What remains:
   burndown uses the real range. `POST /github/sync` also creates cards for pushed branches with
   activity during the active sprint (`SyncBranchStoriesService`, `Story.imported`). Migrations
   `20261002000000_global_sprints` and `20261002000100_story_imported`.
+- **Per-branch commits**: a card now stores only its own branch's commits. `Commit` is unique per
+  `[repositoryId, branch, sha]` (migration `20261003000000_commit_per_branch`), and
+  `SyncStoryCommitsService` uses the compare API to keep just the commits that are not on the default
+  branch. The old merge-aware default-branch fallback was removed.
 
 ---
 
@@ -1193,10 +1200,11 @@ These are deliberately documented so future work does not rediscover them.
   **background interval** (`GITHUB_COMMIT_SYNC_INTERVAL_MS`). True real-time requires a public webhook
   (`POST /github/webhooks` + a repository webhook with `GITHUB_WEBHOOK_SECRET`), which cannot run
   against `localhost`.
-- **Commit sync is merge-aware**: commits are read from the story’s branch, but if that branch has no
-  unique commits vs the default branch (`behind_by = 0`) or does not exist (`404`), the **default
-  branch** is used (`GithubClient.compareBranches`). This suits a “merge locally, push `main`”
-  workflow; the tradeoff is that such a story can show commits that are not uniquely its own.
+- **Commit sync is branch-scoped**: a story stores only the commits on its own branch that are not
+  already on the default branch (`GithubClient.compareBranches().commits`). Commits are unique per
+  `[repositoryId, branch, sha]`, so the same commit on two branches never leaks between cards. A
+  story whose branch *is* the default branch stores all of its commits; a branch that was never
+  pushed or was deleted stores none.
 - **Repos and commits fetch only the first page** (`per_page=100`); no pagination. **Branches are
   paginated** (up to 10 pages / 1000 branches) and the branch picker shows up to 100 matches.
 - **Branch access needs the right token permissions**: a classic PAT needs the `repo` scope; a

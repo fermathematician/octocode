@@ -2,10 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { TokenCipher } from "../../src/infrastructure/auth/TokenCipher.js";
 import type { GithubClient } from "../../src/infrastructure/github/GithubClient.js";
-import type {
-  CommitRepository,
-  UpsertCommitData,
-} from "../../src/modules/github/repositories/CommitRepository.js";
 import { SyncBranchStoriesService } from "../../src/modules/github/services/SyncBranchStoriesService.js";
 import {
   InMemoryGithubRepositoryRepository,
@@ -15,29 +11,12 @@ import {
   InMemoryStoryRepository,
 } from "../support/fakes.js";
 
-interface RecordedCommits {
-  storyId: string;
-  commits: UpsertCommitData[];
-}
-
-function setup(branches: string[], commitDates: Record<string, Date>) {
+function setup(branches: string[], commitsFor: (branch: string) => Date | null) {
   const store = new InMemoryStore();
   const repositories = new InMemoryGithubRepositoryRepository(store);
   const stories = new InMemoryStoryRepository(store);
   const sprints = new InMemorySprintRepository(store);
   const oauthAccounts = new InMemoryOAuthAccountRepository();
-  const recorded: RecordedCommits[] = [];
-
-  const commits = {
-    upsertMany: async (
-      _repositoryId: string,
-      storyId: string,
-      list: UpsertCommitData[],
-    ) => {
-      recorded.push({ storyId, commits: list });
-    },
-    countByStory: async () => 0,
-  } as unknown as CommitRepository;
 
   const tokenCipher = {
     decrypt: (value: string) => value.replace("enc:", ""),
@@ -45,35 +24,45 @@ function setup(branches: string[], commitDates: Record<string, Date>) {
 
   const githubClient = {
     listBranches: async () => branches.map((name) => ({ name })),
-    listCommits: async (
+    compareBranches: async (
       _token: string,
       _owner: string,
       _repo: string,
-      branch: string,
-    ) => [
-      {
-        sha: `${branch}-sha`,
-        message: `work on ${branch}`,
-        authorLogin: "me",
-        authorName: "Me",
-        committedAt:
-          commitDates[branch] ?? new Date("2030-01-01T00:00:00.000Z"),
-        url: null,
-      },
-    ],
+      _base: string,
+      head: string,
+    ) => {
+      const committedAt = commitsFor(head);
+
+      return {
+        status: "ahead",
+        aheadBy: committedAt ? 1 : 0,
+        behindBy: 0,
+        commits: committedAt
+          ? [
+              {
+                sha: `${head}-sha`,
+                message: `work on ${head}`,
+                authorLogin: "me",
+                authorName: "Me",
+                committedAt,
+                url: null,
+              },
+            ]
+          : [],
+      };
+    },
   } as unknown as GithubClient;
 
   const service = new SyncBranchStoriesService(
     repositories,
     stories,
     sprints,
-    commits,
     oauthAccounts,
     tokenCipher,
     githubClient,
   );
 
-  return { store, repositories, sprints, stories, oauthAccounts, recorded, service };
+  return { store, repositories, sprints, stories, oauthAccounts, service };
 }
 
 async function seed(
@@ -115,18 +104,22 @@ async function seed(
   return { user, project, sprint };
 }
 
+const SPRINT_START = new Date("2030-03-01T00:00:00.000Z");
+const RECENT = new Date("2030-03-02T00:00:00.000Z");
+const OLD = new Date("2030-01-01T00:00:00.000Z");
+
 describe("SyncBranchStoriesService", () => {
-  it("creates a card for a branch with activity during the sprint", async () => {
-    const { store, repositories, sprints, oauthAccounts, recorded, service } =
-      setup(["main", "feat/new"], {
-        "feat/new": new Date("2030-03-02T00:00:00.000Z"),
-      });
+  it("creates a backlog card for a branch with activity during the sprint", async () => {
+    const { store, repositories, sprints, oauthAccounts, service } = setup(
+      ["main", "feat/new"],
+      (branch) => (branch === "feat/new" ? RECENT : null),
+    );
     const { user, sprint } = await seed(
       store,
       repositories,
       sprints,
       oauthAccounts,
-      new Date("2030-03-01T00:00:00.000Z"),
+      SPRINT_START,
     );
 
     const result = await service.executeForUser(user.id);
@@ -140,21 +133,38 @@ describe("SyncBranchStoriesService", () => {
     assert.equal(story?.priority, "MEDIUM");
     assert.equal(story?.imported, true);
     assert.equal(story?.sprintId, sprint?.id);
-    assert.equal(recorded.length, 1);
-    assert.equal(recorded[0]?.commits[0]?.branch, "feat/new");
   });
 
-  it("skips the default branch and branches older than the sprint", async () => {
+  it("skips branches whose own commits are older than the sprint", async () => {
     const { store, repositories, sprints, oauthAccounts, service } = setup(
       ["main", "feat/old"],
-      { "feat/old": new Date("2030-01-01T00:00:00.000Z") },
+      (branch) => (branch === "feat/old" ? OLD : null),
     );
     const { user } = await seed(
       store,
       repositories,
       sprints,
       oauthAccounts,
-      new Date("2030-03-01T00:00:00.000Z"),
+      SPRINT_START,
+    );
+
+    const result = await service.executeForUser(user.id);
+
+    assert.equal(result.created, 0);
+    assert.equal(store.stories.length, 0);
+  });
+
+  it("skips a branch with no commits of its own", async () => {
+    const { store, repositories, sprints, oauthAccounts, service } = setup(
+      ["feat/inherited"],
+      () => null,
+    );
+    const { user } = await seed(
+      store,
+      repositories,
+      sprints,
+      oauthAccounts,
+      SPRINT_START,
     );
 
     const result = await service.executeForUser(user.id);
@@ -165,17 +175,17 @@ describe("SyncBranchStoriesService", () => {
 
   it("skips branches that already have a story", async () => {
     const { store, repositories, sprints, oauthAccounts, service } = setup(
-      ["feat/existing"],
-      { "feat/existing": new Date("2030-03-10T00:00:00.000Z") },
+      ["feat/new"],
+      () => RECENT,
     );
     const { user, project } = await seed(
       store,
       repositories,
       sprints,
       oauthAccounts,
-      new Date("2030-03-01T00:00:00.000Z"),
+      SPRINT_START,
     );
-    store.seedStory(project.id, { branch: "feat/existing" });
+    store.seedStory(project.id, { branch: "feat/new" });
 
     const result = await service.executeForUser(user.id);
 
@@ -186,9 +196,15 @@ describe("SyncBranchStoriesService", () => {
   it("does nothing when the user has no sprint", async () => {
     const { store, repositories, sprints, oauthAccounts, service } = setup(
       ["feat/new"],
-      { "feat/new": new Date("2030-03-10T00:00:00.000Z") },
+      () => RECENT,
     );
-    const { user } = await seed(store, repositories, sprints, oauthAccounts, null);
+    const { user } = await seed(
+      store,
+      repositories,
+      sprints,
+      oauthAccounts,
+      null,
+    );
 
     const result = await service.executeForUser(user.id);
 
@@ -198,22 +214,22 @@ describe("SyncBranchStoriesService", () => {
 
   it("is idempotent on a repeated sync", async () => {
     const { store, repositories, sprints, oauthAccounts, service } = setup(
-      ["feat/new"],
-      { "feat/new": new Date("2030-03-10T00:00:00.000Z") },
+      ["feat/new", "feat/old", "feat/inherited"],
+      () => RECENT,
     );
     const { user } = await seed(
       store,
       repositories,
       sprints,
       oauthAccounts,
-      new Date("2030-03-01T00:00:00.000Z"),
+      SPRINT_START,
     );
 
     const first = await service.executeForUser(user.id);
     const second = await service.executeForUser(user.id);
 
-    assert.equal(first.created, 1);
+    assert.equal(first.created, 3);
     assert.equal(second.created, 0);
-    assert.equal(store.stories.length, 1);
+    assert.equal(store.stories.length, 3);
   });
 });

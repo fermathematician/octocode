@@ -39,6 +39,8 @@ export interface GithubBranchComparison {
   status: string;
   aheadBy: number;
   behindBy: number;
+  /** Commits reachable from `head` but not from `base`. */
+  commits: GithubCommitSummary[];
 }
 
 export interface GithubClient {

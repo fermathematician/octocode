@@ -5,13 +5,16 @@ import {
 } from "../../../generated/prisma/client.js";
 import type { GithubRepository } from "../../../generated/prisma/client.js";
 import type { TokenCipher } from "../../../infrastructure/auth/TokenCipher.js";
-import type { GithubClient } from "../../../infrastructure/github/GithubClient.js";
+import type {
+  GithubClient,
+  GithubCommitSummary,
+} from "../../../infrastructure/github/GithubClient.js";
+import { AppError } from "../../../shared/appError.js";
 import { titleFromBranch } from "../../../shared/branch.js";
 import { mapPrismaError } from "../../../shared/prismaErrors.js";
 import type { OAuthAccountRepository } from "../../auth/repositories/OAuthAccountRepository.js";
 import type { SprintRepository } from "../../sprints/repositories/SprintRepository.js";
 import type { StoryRepository } from "../../stories/repositories/StoryRepository.js";
-import type { CommitRepository } from "../repositories/CommitRepository.js";
 import type { GithubRepositoryRepository } from "../repositories/GithubRepositoryRepository.js";
 
 export interface SyncBranchStoriesResult {
@@ -20,16 +23,19 @@ export interface SyncBranchStoriesResult {
 
 /**
  * Reconciles pushed GitHub branches with story cards: every branch that has no
- * story yet and whose newest commit happened during the latest sprint becomes a
- * card on that sprint. The default branch is ignored, and branches created
- * before the sprint (no commit since its start) are left alone.
+ * story yet and whose own commits (not the ones inherited from the default
+ * branch) happened during the latest sprint becomes a backlog card on that
+ * sprint. The default branch is ignored, and branches with no new commit since
+ * the sprint started are left alone.
+ *
+ * Commits are not stored here — the commit sync that runs right after populates
+ * each new card from its branch.
  */
 export class SyncBranchStoriesService {
   constructor(
     private readonly repositories: GithubRepositoryRepository,
     private readonly stories: StoryRepository,
     private readonly sprints: SprintRepository,
-    private readonly commits: CommitRepository,
     private readonly oauthAccounts: OAuthAccountRepository,
     private readonly tokenCipher: TokenCipher,
     private readonly githubClient: GithubClient,
@@ -106,21 +112,26 @@ export class SyncBranchStoriesService {
         continue;
       }
 
-      const commits = await this.githubClient.listCommits(
+      const commits = await this.listOwnBranchCommits(
         accessToken,
-        repository.owner,
-        repository.name,
+        repository,
         branch.name,
       );
-      const newest = commits[0];
+      const newest = commits.reduce<Date | null>(
+        (latest, commit) =>
+          latest === null || commit.committedAt > latest
+            ? commit.committedAt
+            : latest,
+        null,
+      );
 
-      // Only branches with activity after the sprint started auto-appear.
-      if (!newest || newest.committedAt < sprint.startDate) {
+      // Only branches with their own activity after the sprint started auto-appear.
+      if (newest === null || newest < sprint.startDate) {
         continue;
       }
 
       try {
-        const story = await this.stories.create({
+        await this.stories.create({
           projectId: repository.projectId,
           sprintId: sprint.id,
           title: titleFromBranch(branch.name),
@@ -130,20 +141,6 @@ export class SyncBranchStoriesService {
           branch: branch.name,
           imported: true,
         });
-
-        await this.commits.upsertMany(
-          repository.id,
-          story.id,
-          commits.map((commit) => ({
-            sha: commit.sha,
-            message: commit.message,
-            authorLogin: commit.authorLogin,
-            authorName: commit.authorName,
-            branch: branch.name,
-            committedAt: commit.committedAt,
-            url: commit.url,
-          })),
-        );
 
         created += 1;
       } catch (error) {
@@ -157,5 +154,29 @@ export class SyncBranchStoriesService {
     }
 
     return created;
+  }
+
+  private async listOwnBranchCommits(
+    accessToken: string,
+    repository: GithubRepository,
+    branch: string,
+  ): Promise<GithubCommitSummary[]> {
+    try {
+      const comparison = await this.githubClient.compareBranches(
+        accessToken,
+        repository.owner,
+        repository.name,
+        repository.defaultBranch,
+        branch,
+      );
+
+      return comparison.commits;
+    } catch (error) {
+      if (error instanceof AppError && error.statusCode === 404) {
+        return [];
+      }
+
+      throw error;
+    }
   }
 }
