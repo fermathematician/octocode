@@ -19,7 +19,6 @@ export interface ProjectDto {
 
 export interface SprintDto {
   id: string;
-  projectId: string;
   name: string;
   startDate: string;
   endDate: string;
@@ -42,6 +41,7 @@ export interface StoryDto {
   priority: string;
   status: string;
   branch: string;
+  imported: boolean;
   commits: CommitDto[];
   createdAt: string;
   completedAt: string | null;
@@ -99,7 +99,6 @@ export function toProjectDto(
 export function toSprintDto(sprint: SprintModel): SprintDto {
   return {
     id: sprint.id,
-    projectId: sprint.projectId,
     name: sprint.name,
     startDate: toIsoDate(sprint.startDate),
     endDate: toIsoDate(sprint.endDate),
@@ -128,6 +127,7 @@ export function toStoryDto(
     priority: story.priority.toLowerCase(),
     status: story.status.toLowerCase(),
     branch: story.branch,
+    imported: story.imported,
     commits: story.commits.map(toCommitDto),
     createdAt: story.createdAt.toISOString(),
     completedAt: story.completedAt ? toIsoDate(story.completedAt) : null,

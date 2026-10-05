@@ -12,7 +12,7 @@ export type SprintStatus = "upcoming" | "active" | "past";
 
 export interface SprintOverview {
   sprint: Sprint;
-  project: Project | undefined;
+  projectNames: string[];
   totalPoints: number;
   completedPoints: number;
   storyCount: number;
@@ -23,11 +23,8 @@ export interface SprintOverview {
 
 interface UseSprintsResult {
   entries: SprintOverview[];
-  projects: Project[];
   loading: boolean;
   error: string | null;
-  projectFilter: string | null;
-  setProjectFilter: (projectId: string | null) => void;
   deleteSprint: (sprintId: string) => Promise<void>;
   reload: () => void;
 }
@@ -36,12 +33,13 @@ function buildOverviews(
   sprints: Sprint[],
   stories: Story[],
   projects: Project[],
-  projectId: string | null,
 ): SprintOverview[] {
   const today = todayIso();
+  const nameById = Object.fromEntries(
+    projects.map((project) => [project.id, project.name]),
+  );
 
   return sprints
-    .filter((sprint) => projectId === null || sprint.projectId === projectId)
     .map((sprint) => {
       const sprintStories = stories.filter(
         (story) => story.sprintId === sprint.id,
@@ -57,6 +55,13 @@ function buildOverviews(
         (sum, story) => sum + story.storyPoints,
         0,
       );
+      const projectNames = [
+        ...new Set(
+          sprintStories.map(
+            (story) => nameById[story.projectId] ?? "Unknown project",
+          ),
+        ),
+      ];
 
       const status: SprintStatus =
         sprint.endDate < today
@@ -67,7 +72,7 @@ function buildOverviews(
 
       return {
         sprint,
-        project: projects.find((project) => project.id === sprint.projectId),
+        projectNames,
         totalPoints,
         completedPoints,
         storyCount: sprintStories.length,
@@ -88,7 +93,6 @@ export function useSprints(): UseSprintsResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
-  const [projectFilter, setProjectFilter] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,8 +133,8 @@ export function useSprints(): UseSprintsResult {
   }, []);
 
   const entries = useMemo(
-    () => buildOverviews(sprints, stories, projects, projectFilter),
-    [sprints, stories, projects, projectFilter],
+    () => buildOverviews(sprints, stories, projects),
+    [sprints, stories, projects],
   );
 
   const deleteSprint = useCallback(
@@ -143,11 +147,8 @@ export function useSprints(): UseSprintsResult {
 
   return {
     entries,
-    projects,
     loading,
     error,
-    projectFilter,
-    setProjectFilter,
     deleteSprint,
     reload,
   };

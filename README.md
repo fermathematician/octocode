@@ -125,7 +125,7 @@ thats the project.
 | R7 | Filter by project and by priority | frontend filters + API query filters | ✅ |
 | R8 | Sprint start + finish dates | `Sprint.startDate/endDate` | ✅ |
 | R9 | Burndown graph (points remaining Y, days X) | `BurndownChart` (SVG) | ✅ |
-| R10 | All sprints are 1 week | backend computes `endDate = start + 6d` | ✅ |
+| R10 | A sprint spans all projects | `Sprint.ownerId`; no per-sprint project | ✅ |
 | R11 | Calendar for reminders / tasks / meetings | `CalendarPage`; `CalendarEvent` table | ✅ |
 | R12 | Google Calendar sync | — | ❌ |
 | R13 | Project view: history of all sprints | `ProgressPage` | ✅ |
@@ -149,7 +149,8 @@ implemented app:
 
 - **Kanban** = the board screen (one global board, filterable by project).
 - **Graph** = the burndown screen (split out of the old combined "Sprint" screen).
-- **Sprint** = a time box (1 week) that owns a set of stories; not a screen name anymore.
+- **Sprint** = a time box with a start and end date that owns a set of stories across all
+  projects; not a screen name anymore.
 
 ---
 
@@ -212,7 +213,8 @@ interface Story {
 (only in the developer's clone, reported by the git hook — see §6.13). The branch picker shows both
 and tags the local ones.
 
-**Sprint**: `{ id, projectId, name, startDate, endDate }` (ISO dates). One week long.
+**Sprint**: `{ id, name, startDate, endDate }` (ISO dates). Spans every project; the start/end
+range is user-defined.
 
 **CalendarEvent**: `{ id, type, title, date, startTime, notes }` where
 `type` is `"reminder" | "task" | "meeting"`. Owned by a user.
@@ -226,8 +228,8 @@ and tags the local ones.
 
 ### 3.3 Derived concepts
 
-- **Active sprint** — `selectActiveSprints(sprints, projectId)`: the latest sprint per project (or
-  the latest for one project). See `frontend/src/domain/sprint.ts`.
+- **Active sprint** — `selectActiveSprint(sprints)`: the latest sprint overall, since all projects
+  share one timeline. See `frontend/src/domain/sprint.ts`.
 - **Burndown** — `buildBurndown(sprints, stories)`: `{ day, ideal, remaining }[]`.
 - **Backlog list** — stories with `status === "backlog"`, filtered and sorted by the frontend.
 - **Today agenda** — calendar events whose `date === today`, sorted by `startTime`.
@@ -438,12 +440,11 @@ Rules (enforced by convention):
   the default branch (or was never pushed), the **default branch** is used instead, so a
   “merge locally, push `main`” workflow still shows the merged work.
 - **Sprint generation** — the **Sprints** screen has a **Generate sprint** button that creates a
-  one-week sprint (`POST /sprints`, start + 6 days) for a chosen project. (Sprint generation lives
-  only on that screen.)
+  sprint with a chosen start and end date (`POST /sprints`). A sprint spans every project. (Sprint
+  generation lives only on that screen.)
 - **Status** — kanban DnD or `PATCH /stories/:id/status`; entering `refactor` sets `completedAt`.
-- **Burndown** — derived from sprint dates and `completedAt` (see `domain/sprint.ts`), capped to a
-  7-day window (one week); with several projects the graph uses the 7 days starting from the
-  earliest active sprint.
+- **Burndown** — derived from the sprint's `startDate`/`endDate` and story `completedAt` (see
+  `domain/sprint.ts`); the window matches the sprint's real length.
 
 ### 5.8 Styling & design tokens
 
@@ -516,8 +517,8 @@ Enums: `OAuthProvider`, `StoryPriority`, `StoryStatus`, `CalendarEventType`.
 | `Session` | Server-side session | `tokenHash` unique (sha256 of cookie token); `expiresAt`, `revokedAt` |
 | `Project` | A user's project | `ownerId → User`; optional 1:1 `repository`; has sprints, stories |
 | `GithubRepository` | Linked repo | `projectId` unique; `[userId, repoId]` unique (per user); `owner`/`name` = GitHub repo; `installationId?` |
-| `Sprint` | One-week time box | `projectId → Project`; `startDate`, `endDate` |
-| `Story` | Unit of work | `[projectId, branch]` unique; `priority`, `status`, `completedAt`; has commits |
+| `Sprint` | Time box across all projects | `ownerId → User`; `startDate`, `endDate` |
+| `Story` | Unit of work | `[projectId, branch]` unique; `priority`, `status`, `imported`, `completedAt`; has commits |
 | `Commit` | A commit on a story branch | `[repositoryId, sha]` unique; `storyId? → Story`; `branch` |
 | `CalendarEvent` | Planner item | `userId → User`; `type`, `date`, `startTime`; `source` (LOCAL/GOOGLE), `externalId`, `externalUpdatedAt`; `[userId, externalId]` unique |
 | `GithubWebhookEvent` | Webhook idempotency | `deliveryId` unique — **reserved, not used yet** (§13) |
@@ -598,8 +599,8 @@ All routes except `/health` and the two OAuth endpoints require a valid session 
 | GET | `/projects/:projectId` | required | Get one project (404 if not owned) |
 | PATCH | `/projects/:projectId` | required | Update `{ name?, color? }` |
 | DELETE | `/projects/:projectId` | required | Delete a project (cascade) → 204 |
-| GET | `/sprints?projectId=&limit=&cursor=` | required | List sprints (paginated) |
-| POST | `/sprints` | required | Create sprint `{ projectId, name, startDate }` (7-day window: `endDate = start + 6d`) |
+| GET | `/sprints?limit=&cursor=` | required | List the actor's sprints (paginated) |
+| POST | `/sprints` | required | Create sprint `{ name, startDate, endDate }` (any range) |
 | PATCH | `/sprints/:sprintId` | required | Update `{ name?, startDate? }` (endDate recomputed) |
 | DELETE | `/sprints/:sprintId` | required | Delete a sprint (stories keep, `sprintId` set null) → 204 |
 | GET | `/stories?projectId=&status=&priority=&limit=&cursor=` | required | List stories (with commits, paginated) |
@@ -622,7 +623,7 @@ All routes except `/health` and the two OAuth endpoints require a valid session 
 | GET | `/github/projects/:projectId/branches` | required | List branches of the linked repository; merges GitHub + local (`{ name, source }`) |
 | POST | `/github/branches/local` | required | Record local branches `{ owner, name, names }` reported by the git hook |
 | POST | `/github/stories/:storyId/sync-commits` | required | Fetch + upsert commits for the story branch |
-| POST | `/github/sync` | required | Sync commits for all of the actor's stories |
+| POST | `/github/sync` | required | Create cards for new pushed branches + sync commits for all of the actor's stories |
 | POST | `/github/webhooks` | public (signature) | GitHub `push` webhook; needs `GITHUB_WEBHOOK_SECRET` |
 
 Responses use the frontend DTO shapes (§3). Errors return `{ "message": string }`.
@@ -689,7 +690,7 @@ Frontend LoginScreen
 | `GITHUB_CLIENT_SECRET` | for login | `""` | OAuth App client secret |
 | `GITHUB_OAUTH_CALLBACK_URL` | no | `http://localhost:3333/auth/github/callback` | Must match the OAuth App |
 | `GITHUB_WEBHOOK_SECRET` | no | `""` | Secret for `POST /github/webhooks`; empty disables it |
-| `GITHUB_COMMIT_SYNC_INTERVAL_MS` | no | `300000` | Background commit sync interval |
+| `GITHUB_COMMIT_SYNC_INTERVAL_MS` | no | `300000` | Background branch + commit sync interval |
 | `SESSION_COOKIE_NAME` | no | `octocode_session` | Session cookie name |
 | `SESSION_TTL_DAYS` | no | `30` | Session lifetime |
 | `COOKIE_SECURE` | no | `false` | Set `true` behind HTTPS |
@@ -739,12 +740,13 @@ for deployment).
 - **UI**: the Calendar page has a sync bar (connect/disconnect, sync now, last-synced, result) —
   in-app notifications instead of Google push notifications.
 - **Scope**: `https://www.googleapis.com/auth/calendar.events`.
-- **Sprints** are exactly 7 days (`SPRINT_DURATION_DAYS = 7`).
 - **Limitations**: §13.6.
 
-### 6.12 GitHub commit sync
+### 6.12 GitHub commit & branch sync
 
-Commits can be synchronised four ways:
+`POST /github/sync` runs two things for the actor: it **creates cards for new pushed branches**
+(`SyncBranchStoriesService`) and then **syncs commits** (`SyncCommitsService`). Commits can be
+synchronised four ways:
 
 - **Manual** — `POST /github/stories/:storyId/sync-commits` (the **Sync commits** buttons).
 - **On open** — `POST /github/sync` syncs all of the actor's stories; the SPA calls it once when the
@@ -758,6 +760,13 @@ Commits can be synchronised four ways:
 Each sync resolves which branch to read (`SyncStoryCommitsService`): the story branch when it has
 unmerged commits, otherwise the repository’s **default branch** (merged or missing branch).
 `SyncCommitsService` skips a failing story instead of aborting the batch.
+
+**Branch cards.** `SyncBranchStoriesService` lists the repository's branches and creates a card for
+every branch that has no story yet and whose newest commit is on/after the active sprint's
+`startDate` (the default branch is skipped). The card is titled from the branch (`feat/add-login` →
+“Add login”), gets `1` point, `medium` priority, `code` status, and is marked `imported`. Deleting a
+branch upstream does not remove its card. A true cross-user “everyone on the project” view still
+needs project membership (not implemented).
 
 **When do commits appear?** A story always shows what GitHub can see at sync time — nothing is read
 from your disk. The refresh happens automatically (Kanban/Backlog open, the background interval, or a
@@ -898,7 +907,7 @@ Mapping:
 | Frontend function | Endpoint |
 | --- | --- |
 | `getProjects()` | `GET /projects` |
-| `getSprints(projectId?)` | `GET /sprints?projectId=` |
+| `getSprints()` | `GET /sprints` |
 | `getStories()` | `GET /stories` |
 | `createStory(input)` | `POST /stories` |
 | `updateStoryStatus(id, status)` | `PATCH /stories/:storyId/status` |
@@ -1098,6 +1107,11 @@ The detailed gap analysis and phased plan live in **§14**. What remains:
   `owner`/`name`, scoped to the caller), a merged `GET /github/projects/:id/branches` returning
   `{ name, source }`, and `scripts/git-hooks/` (installer + `octocode-branch-sync.mjs`) so unpushed
   branches appear in the picker with a `local` tag.
+- **Global sprints, custom dates & branch cards**: `Sprint` is now owned by a user (`ownerId`) and
+  spans every project; `POST /sprints` takes `{ name, startDate, endDate }` (no 7-day window) and the
+  burndown uses the real range. `POST /github/sync` also creates cards for pushed branches with
+  activity during the active sprint (`SyncBranchStoriesService`, `Story.imported`). Migrations
+  `20261002000000_global_sprints` and `20261002000100_story_imported`.
 
 ---
 

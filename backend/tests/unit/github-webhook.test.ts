@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { describe, it } from "node:test";
 import type { GithubWebhookEventRepository } from "../../src/modules/github/repositories/GithubWebhookEventRepository.js";
-import type { SyncCommitsService } from "../../src/modules/github/services/SyncCommitsService.js";
+import type { SyncRepositoriesService } from "../../src/modules/github/services/SyncRepositoriesService.js";
 import { HandleGithubWebhookService } from "../../src/modules/github/services/HandleGithubWebhookService.js";
 import { AppError } from "../../src/shared/appError.js";
 import {
@@ -34,17 +34,17 @@ function setup(secret = SECRET) {
     },
   } as unknown as GithubWebhookEventRepository;
 
-  const syncCommits = {
+  const syncRepositories = {
     executeForRepository: async (repository: { id: string }) => {
       synced.push(repository.id);
-      return { stories: 0, commits: 0 };
+      return { branchesCreated: 0, stories: 0, commits: 0 };
     },
-  } as unknown as SyncCommitsService;
+  } as unknown as SyncRepositoriesService;
 
   const service = new HandleGithubWebhookService(
     repositories,
     webhookEvents,
-    syncCommits,
+    syncRepositories,
     secret,
   );
 

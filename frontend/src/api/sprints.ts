@@ -2,14 +2,13 @@ import type { Sprint } from "../domain/types";
 import { apiFetch, type Paginated } from "./http";
 
 export interface CreateSprintInput {
-  projectId: string;
   name: string;
   startDate: string;
+  endDate: string;
 }
 
-export async function getSprints(projectId?: string): Promise<Sprint[]> {
-  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
-  const page = await apiFetch<Paginated<Sprint>>(`/sprints${query}`);
+export async function getSprints(): Promise<Sprint[]> {
+  const page = await apiFetch<Paginated<Sprint>>("/sprints");
   return page.items;
 }
 

@@ -26,7 +26,7 @@ export class CreateStoryService {
       throw new AppError("Project not found", 404);
     }
 
-    const activeSprint = await this.sprints.findLatestByProject(input.projectId);
+    const activeSprint = await this.sprints.findLatestByOwner(ownerId);
     const existingBranches =
       await this.stories.findBranchesByProject(input.projectId);
 

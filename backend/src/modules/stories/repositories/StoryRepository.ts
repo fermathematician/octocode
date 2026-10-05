@@ -26,6 +26,8 @@ export interface CreateStoryData {
   storyPoints: number;
   priority: StoryPriority;
   branch: string;
+  status?: StoryStatus;
+  imported?: boolean;
 }
 
 export interface UpdateStoryData {

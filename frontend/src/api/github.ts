@@ -40,11 +40,12 @@ export function syncStoryCommits(
 }
 
 export interface SyncAllCommitsResult {
+  branchesCreated: number;
   stories: number;
   commits: number;
 }
 
-/** Syncs commits for every story the current user owns. */
+/** Creates cards for new pushed branches and syncs commits for every story. */
 export function syncAllCommits(): Promise<SyncAllCommitsResult> {
   return apiFetch<SyncAllCommitsResult>("/github/sync", { method: "POST" });
 }

@@ -26,13 +26,6 @@ export class MoveStoryToSprintService {
       if (!sprint) {
         throw new AppError("Sprint not found", 404);
       }
-
-      if (sprint.projectId !== story.projectId) {
-        throw new AppError(
-          "The sprint belongs to a different project.",
-          400,
-        );
-      }
     }
 
     const updated = await this.stories.moveToSprint(storyId, sprintId);

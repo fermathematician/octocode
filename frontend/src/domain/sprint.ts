@@ -1,55 +1,22 @@
 import { addDays, daysBetween, parseIsoDate, toIsoDate } from "../shared/date";
 import type { Sprint, Story } from "./types";
 
-/// A sprint is one week; the burndown never spans more than 7 days, even when the
-/// graph combines active sprints from several projects.
-const SPRINT_DURATION_DAYS = 7;
-
 export interface BurndownPoint {
   day: number;
   ideal: number;
   remaining: number;
 }
 
-export function latestSprintPerProject(sprints: Sprint[]): Sprint[] {
-  const latest = new Map<string, Sprint>();
-
-  for (const sprint of sprints) {
-    const current = latest.get(sprint.projectId);
-
-    if (!current || sprint.startDate > current.startDate) {
-      latest.set(sprint.projectId, sprint);
-    }
-  }
-
-  return [...latest.values()];
-}
-
-export function selectActiveSprints(
-  sprints: Sprint[],
-  projectId: string | null,
-): Sprint[] {
+/// The active sprint is the latest one the user created, regardless of project:
+/// a sprint spans every project.
+export function selectActiveSprint(sprints: Sprint[]): Sprint | null {
   if (sprints.length === 0) {
-    return [];
+    return null;
   }
 
-  if (projectId === null) {
-    return latestSprintPerProject(sprints);
-  }
-
-  const projectSprints = sprints.filter(
-    (sprint) => sprint.projectId === projectId,
+  return sprints.reduce((latest, sprint) =>
+    sprint.startDate > latest.startDate ? sprint : latest,
   );
-
-  if (projectSprints.length === 0) {
-    return [];
-  }
-
-  return [
-    projectSprints
-      .slice()
-      .sort((first, second) => second.startDate.localeCompare(first.startDate))[0],
-  ];
 }
 
 export function buildBurndown(
@@ -69,10 +36,7 @@ export function buildBurndown(
     (latest, sprint) => (sprint.endDate > latest ? sprint.endDate : latest),
     sprints[0].endDate,
   );
-  const totalDays = Math.min(
-    SPRINT_DURATION_DAYS - 1,
-    Math.max(1, daysBetween(start, end)),
-  );
+  const totalDays = Math.max(1, daysBetween(start, end));
   const totalPoints = stories.reduce(
     (sum, story) => sum + story.storyPoints,
     0,

@@ -6,7 +6,7 @@ import {
 } from "../../../shared/pagination.js";
 
 export interface CreateSprintData {
-  projectId: string;
+  ownerId: string;
   name: string;
   startDate: Date;
   endDate: Date;
@@ -21,11 +21,10 @@ export interface UpdateSprintData {
 export interface SprintRepository {
   findManyByOwner(
     ownerId: string,
-    projectId: string | undefined,
     pagination: Pagination,
   ): Promise<Paginated<Sprint>>;
   findByIdForOwner(id: string, ownerId: string): Promise<Sprint | null>;
-  findLatestByProject(projectId: string): Promise<Sprint | null>;
+  findLatestByOwner(ownerId: string): Promise<Sprint | null>;
   create(data: CreateSprintData): Promise<Sprint>;
   update(
     id: string,
@@ -40,14 +39,10 @@ export class PrismaSprintRepository implements SprintRepository {
 
   async findManyByOwner(
     ownerId: string,
-    projectId: string | undefined,
     pagination: Pagination,
   ): Promise<Paginated<Sprint>> {
     const rows = await this.prisma.sprint.findMany({
-      where: {
-        project: { ownerId },
-        ...(projectId ? { projectId } : {}),
-      },
+      where: { ownerId },
       orderBy: [{ startDate: "desc" }, { id: "asc" }],
       take: pagination.limit + 1,
       ...(pagination.cursor
@@ -60,13 +55,13 @@ export class PrismaSprintRepository implements SprintRepository {
 
   findByIdForOwner(id: string, ownerId: string): Promise<Sprint | null> {
     return this.prisma.sprint.findFirst({
-      where: { id, project: { ownerId } },
+      where: { id, ownerId },
     });
   }
 
-  findLatestByProject(projectId: string): Promise<Sprint | null> {
+  findLatestByOwner(ownerId: string): Promise<Sprint | null> {
     return this.prisma.sprint.findFirst({
-      where: { projectId },
+      where: { ownerId },
       orderBy: { startDate: "desc" },
     });
   }
@@ -81,7 +76,7 @@ export class PrismaSprintRepository implements SprintRepository {
     data: UpdateSprintData,
   ): Promise<Sprint | null> {
     const result = await this.prisma.sprint.updateMany({
-      where: { id, project: { ownerId } },
+      where: { id, ownerId },
       data,
     });
 
@@ -94,7 +89,7 @@ export class PrismaSprintRepository implements SprintRepository {
 
   async delete(id: string, ownerId: string): Promise<boolean> {
     const result = await this.prisma.sprint.deleteMany({
-      where: { id, project: { ownerId } },
+      where: { id, ownerId },
     });
 
     return result.count > 0;

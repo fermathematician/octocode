@@ -1,9 +1,9 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../../shared/appError.js";
-import type { SyncCommitsService } from "../services/SyncCommitsService.js";
+import type { SyncRepositoriesService } from "../services/SyncRepositoriesService.js";
 
-export class SyncCommitsController {
-  constructor(private readonly service: SyncCommitsService) {}
+export class SyncRepositoriesController {
+  constructor(private readonly service: SyncRepositoriesService) {}
 
   handle = async (request: Request, response: Response): Promise<void> => {
     if (!request.auth) {
@@ -11,6 +11,6 @@ export class SyncCommitsController {
     }
 
     const result = await this.service.executeForUser(request.auth.userId);
-    response.json({ stories: result.stories, commits: result.commits });
+    response.json(result);
   };
 }

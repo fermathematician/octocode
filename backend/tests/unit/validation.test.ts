@@ -133,24 +133,35 @@ describe("project validation", () => {
 });
 
 describe("sprint validation", () => {
-  it("parses a valid start date", () => {
-    assert.equal(
-      parseCreateSprintBody({
-        projectId: "p1",
-        name: "Sprint 1",
-        startDate: "2030-01-01",
-      }).startDate,
-      "2030-01-01",
-    );
+  it("parses a valid date range", () => {
+    const input = parseCreateSprintBody({
+      name: "Sprint 1",
+      startDate: "2030-01-01",
+      endDate: "2030-01-10",
+    });
+
+    assert.equal(input.startDate, "2030-01-01");
+    assert.equal(input.endDate, "2030-01-10");
   });
 
   it("rejects a malformed date", () => {
     assert.throws(
       () =>
         parseCreateSprintBody({
-          projectId: "p1",
           name: "Sprint 1",
           startDate: "01/01/2030",
+          endDate: "2030-01-10",
+        }),
+      ValidationError,
+    );
+  });
+
+  it("rejects a missing end date", () => {
+    assert.throws(
+      () =>
+        parseCreateSprintBody({
+          name: "Sprint 1",
+          startDate: "2030-01-01",
         }),
       ValidationError,
     );

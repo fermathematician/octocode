@@ -1,7 +1,6 @@
 import {
   ValidationError,
   asObject,
-  optionalString,
   requireIsoDate,
   requireString,
 } from "../../../shared/validation.js";
@@ -11,28 +10,28 @@ import {
 } from "../../../shared/pagination.js";
 
 export interface ListSprintsQuery {
-  projectId?: string;
   pagination: Pagination;
 }
 
 export interface CreateSprintInput {
-  projectId: string;
   name: string;
   startDate: string;
+  endDate: string;
 }
 
 export interface UpdateSprintInput {
   name?: string;
   startDate?: string;
+  endDate?: string;
 }
 
 export function parseCreateSprintBody(value: unknown): CreateSprintInput {
   const record = asObject(value);
 
   return {
-    projectId: requireString(record, "projectId"),
     name: requireString(record, "name", { maxLength: 120 }).trim(),
     startDate: requireIsoDate(record, "startDate"),
+    endDate: requireIsoDate(record, "endDate"),
   };
 }
 
@@ -48,6 +47,10 @@ export function parseUpdateSprintBody(value: unknown): UpdateSprintInput {
     input.startDate = requireIsoDate(record, "startDate");
   }
 
+  if (record.endDate !== undefined) {
+    input.endDate = requireIsoDate(record, "endDate");
+  }
+
   if (Object.keys(input).length === 0) {
     throw new ValidationError("Provide at least one field to update.");
   }
@@ -56,13 +59,7 @@ export function parseUpdateSprintBody(value: unknown): UpdateSprintInput {
 }
 
 export function parseListSprintsQuery(value: unknown): ListSprintsQuery {
-  const record = asObject(value);
-  const projectId = optionalString(record, "projectId");
-
-  return {
-    ...(projectId ? { projectId } : {}),
-    pagination: parsePagination(record),
-  };
+  return { pagination: parsePagination(asObject(value)) };
 }
 
 export function parseSprintParams(value: unknown): { sprintId: string } {

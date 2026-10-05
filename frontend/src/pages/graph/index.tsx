@@ -12,7 +12,7 @@ const ALL_PROJECTS = "all";
 export function GraphPage() {
   const {
     points,
-    activeSprints,
+    activeSprint,
     projects,
     projectFilter,
     setProjectFilter,
@@ -56,17 +56,17 @@ export function GraphPage() {
         <ErrorState message={error} onRetry={reload} />
       ) : null}
 
-      {!loading && !error && activeSprints.length === 0 ? (
+      {!loading && !error && !activeSprint ? (
         <EmptyState
           title="No active sprint"
           description="Start a sprint to track story points remaining over time."
         />
       ) : null}
 
-      {!loading && !error && activeSprints.length > 0 ? (
+      {!loading && !error && activeSprint ? (
         <>
           <SprintHeader
-            sprints={activeSprints}
+            sprint={activeSprint}
             totalPoints={totalPoints}
             remainingPoints={remainingPoints}
           />

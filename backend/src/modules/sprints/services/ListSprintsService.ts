@@ -10,14 +10,9 @@ export class ListSprintsService {
 
   async execute(
     ownerId: string,
-    projectId: string | undefined,
     pagination: Pagination,
   ): Promise<Paginated<SprintDto>> {
-    const page = await this.sprints.findManyByOwner(
-      ownerId,
-      projectId,
-      pagination,
-    );
+    const page = await this.sprints.findManyByOwner(ownerId, pagination);
 
     return {
       items: page.items.map(toSprintDto),

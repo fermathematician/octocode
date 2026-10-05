@@ -109,11 +109,11 @@ export class InMemoryStore {
     return project;
   }
 
-  seedSprint(projectId: string, overrides: Partial<Sprint> = {}): Sprint {
+  seedSprint(ownerId: string, overrides: Partial<Sprint> = {}): Sprint {
     const now = new Date();
     const sprint: Sprint = {
       id: this.nextId("sprint"),
-      projectId,
+      ownerId,
       name: "Sprint",
       startDate: now,
       endDate: now,
@@ -135,6 +135,7 @@ export class InMemoryStore {
       priority: StoryPriority.MEDIUM,
       status: StoryStatus.BACKLOG,
       branch: `feat/story-${this.sequence}`,
+      imported: false,
       createdAt: now,
       updatedAt: now,
       completedAt: null,
@@ -262,35 +263,26 @@ export class InMemorySprintRepository implements SprintRepository {
 
   async findManyByOwner(
     ownerId: string,
-    projectId: string | undefined,
     pagination: Pagination,
   ): Promise<Paginated<Sprint>> {
     const rows = this.store.sprints
-      .filter((sprint) => {
-        if (projectId && sprint.projectId !== projectId) {
-          return false;
-        }
-
-        return this.ownsProject(sprint.projectId, ownerId);
-      })
+      .filter((sprint) => sprint.ownerId === ownerId)
       .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
 
     return buildPage(rows, pagination.limit);
   }
 
   async findByIdForOwner(id: string, ownerId: string): Promise<Sprint | null> {
-    const sprint = this.store.sprints.find((candidate) => candidate.id === id);
+    const sprint = this.store.sprints.find(
+      (candidate) => candidate.id === id && candidate.ownerId === ownerId,
+    );
 
-    if (!sprint || !this.ownsProject(sprint.projectId, ownerId)) {
-      return null;
-    }
-
-    return sprint;
+    return sprint ?? null;
   }
 
-  async findLatestByProject(projectId: string): Promise<Sprint | null> {
+  async findLatestByOwner(ownerId: string): Promise<Sprint | null> {
     const rows = this.store.sprints
-      .filter((sprint) => sprint.projectId === projectId)
+      .filter((sprint) => sprint.ownerId === ownerId)
       .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
 
     return rows[0] ?? null;
@@ -299,7 +291,7 @@ export class InMemorySprintRepository implements SprintRepository {
   async create(data: CreateSprintData): Promise<Sprint> {
     const sprint: Sprint = {
       id: this.store.nextId("sprint"),
-      projectId: data.projectId,
+      ownerId: data.ownerId,
       name: data.name,
       startDate: data.startDate,
       endDate: data.endDate,
@@ -347,13 +339,6 @@ export class InMemorySprintRepository implements SprintRepository {
     );
     return true;
   }
-
-  private ownsProject(projectId: string, ownerId: string): boolean {
-    return (
-      this.store.projects.find((project) => project.id === projectId)
-        ?.ownerId === ownerId
-    );
-  }
 }
 
 export class InMemoryStoryRepository implements StoryRepository {
@@ -393,8 +378,9 @@ export class InMemoryStoryRepository implements StoryRepository {
       title: data.title,
       storyPoints: data.storyPoints,
       priority: data.priority,
-      status: StoryStatus.BACKLOG,
+      status: data.status ?? StoryStatus.BACKLOG,
       branch: data.branch,
+      imported: data.imported ?? false,
       createdAt: now,
       updatedAt: now,
       completedAt: null,

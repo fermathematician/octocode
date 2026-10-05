@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { app } from "./app.js";
 import { env } from "./config/env.js";
-import { backgroundCommitSync } from "./composition/github.js";
+import { backgroundSync } from "./composition/github.js";
 import { syncAllCalendars } from "./composition/index.js";
 import { sessionProvider } from "./composition/shared.js";
 import { prisma } from "./infrastructure/prisma/client.js";
@@ -44,7 +44,7 @@ calendarSyncTimer.unref();
 
 async function syncCommits(): Promise<void> {
   try {
-    await backgroundCommitSync.executeAll();
+    await backgroundSync.executeAll();
   } catch (error) {
     console.error("Commit sync job failed.", error);
   }

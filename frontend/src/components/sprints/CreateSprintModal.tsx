@@ -1,40 +1,43 @@
 import { useState, type FormEvent } from "react";
 import { ApiError } from "../../api/http";
 import { createSprint } from "../../api/sprints";
-import type { Project } from "../../domain/types";
-import { todayIso } from "../../shared/date";
+import { addDays, parseIsoDate, todayIso, toIsoDate } from "../../shared/date";
 import { Button } from "../shared/Button/Button";
 import { Modal } from "../shared/Modal/Modal";
-import { Select } from "../shared/Select/Select";
 import { TextInput } from "../shared/TextInput/TextInput";
 import styles from "./CreateSprintModal.module.css";
 
 interface CreateSprintModalProps {
-  projects: Project[];
-  defaultProjectId: string | null;
   onClose: () => void;
   onCreated: () => void;
 }
 
+function defaultEndDate(): string {
+  return toIsoDate(addDays(parseIsoDate(todayIso()), 6));
+}
+
 export function CreateSprintModal({
-  projects,
-  defaultProjectId,
   onClose,
   onCreated,
 }: CreateSprintModalProps) {
-  const [projectId, setProjectId] = useState(
-    defaultProjectId ?? projects[0]?.id ?? "",
-  );
   const [name, setName] = useState("Sprint");
   const [startDate, setStartDate] = useState(() => todayIso());
+  const [endDate, setEndDate] = useState(() => defaultEndDate());
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const hasValidRange = !startDate || !endDate || endDate >= startDate;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!projectId || !name.trim() || !startDate) {
-      setError("Project, name and start date are required.");
+    if (!name.trim() || !startDate || !endDate) {
+      setError("Name, start date and end date are required.");
+      return;
+    }
+
+    if (endDate < startDate) {
+      setError("The end date cannot be before the start date.");
       return;
     }
 
@@ -42,7 +45,7 @@ export function CreateSprintModal({
     setIsSubmitting(true);
 
     try {
-      await createSprint({ projectId, name: name.trim(), startDate });
+      await createSprint({ name: name.trim(), startDate, endDate });
       onCreated();
     } catch (caught) {
       setError(
@@ -58,17 +61,6 @@ export function CreateSprintModal({
   return (
     <Modal title="Generate sprint" onClose={onClose}>
       <form className={styles.form} onSubmit={handleSubmit} noValidate>
-        <Select
-          id="sprint-project"
-          label="Project"
-          value={projectId}
-          options={projects.map((project) => ({
-            value: project.id,
-            label: project.name,
-          }))}
-          onChange={setProjectId}
-        />
-
         <TextInput
           id="sprint-name"
           label="Sprint name"
@@ -85,8 +77,21 @@ export function CreateSprintModal({
           onChange={setStartDate}
         />
 
+        <TextInput
+          id="sprint-end"
+          label="End date"
+          type="date"
+          value={endDate}
+          onChange={setEndDate}
+          error={
+            hasValidRange
+              ? undefined
+              : "The end date cannot be before the start date."
+          }
+        />
+
         <p className={styles.hint}>
-          Sprints last one week: the start date plus 6 days.
+          Sprints can be any length — pick both dates.
         </p>
 
         {error ? (
@@ -99,7 +104,7 @@ export function CreateSprintModal({
           <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting || !projectId}>
+          <Button type="submit" disabled={isSubmitting || !hasValidRange}>
             {isSubmitting ? "Generating…" : "Generate sprint"}
           </Button>
         </div>

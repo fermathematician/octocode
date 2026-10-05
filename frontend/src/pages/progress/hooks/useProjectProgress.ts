@@ -6,7 +6,7 @@ import type { Project, Sprint, Story } from "../../../domain/types";
 
 export interface SprintProgress {
   sprint: Sprint;
-  project: Project | undefined;
+  projectNames: string[];
   totalPoints: number;
   completedPoints: number;
   storyCount: number;
@@ -27,34 +27,49 @@ function buildEntries(
   sprints: Sprint[],
   stories: Story[],
 ): SprintProgress[] {
+  const nameById = Object.fromEntries(
+    projects.map((project) => [project.id, project.name]),
+  );
+
   return sprints
-    .filter((sprint) => projectId === null || sprint.projectId === projectId)
     .map((sprint) => {
       const sprintStories = stories.filter(
         (story) => story.sprintId === sprint.id,
       );
-      const totalPoints = sprintStories.reduce(
+      const visible =
+        projectId === null
+          ? sprintStories
+          : sprintStories.filter((story) => story.projectId === projectId);
+      const totalPoints = visible.reduce(
         (sum, story) => sum + story.storyPoints,
         0,
       );
-      const completedStories = sprintStories.filter(
+      const completedStories = visible.filter(
         (story) => story.status === "refactor",
       );
       const completedPoints = completedStories.reduce(
         (sum, story) => sum + story.storyPoints,
         0,
       );
+      const projectNames = [
+        ...new Set(
+          visible.map(
+            (story) => nameById[story.projectId] ?? "Unknown project",
+          ),
+        ),
+      ];
 
       return {
         sprint,
-        project: projects.find((project) => project.id === sprint.projectId),
+        projectNames,
         totalPoints,
         completedPoints,
-        storyCount: sprintStories.length,
+        storyCount: visible.length,
         completedCount: completedStories.length,
         progress: totalPoints === 0 ? 0 : completedPoints / totalPoints,
       };
     })
+    .filter((entry) => projectId === null || entry.storyCount > 0)
     .sort((first, second) =>
       second.sprint.startDate.localeCompare(first.sprint.startDate),
     );

@@ -34,3 +34,22 @@ export function uniqueBranchName(
 
   return `${base}-${counter}`;
 }
+
+/// Turns a git branch into a human-readable card title, e.g.
+/// `feat/add-login-flow` -> `Add login flow`.
+export function titleFromBranch(branch: string): string {
+  const withoutPrefix = branch.replace(
+    /^(feat|feature|fix|bugfix|hotfix|chore|refactor|test|docs)\//i,
+    "",
+  );
+  const words = withoutPrefix
+    .replace(/[-_/]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!words) {
+    return branch;
+  }
+
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}

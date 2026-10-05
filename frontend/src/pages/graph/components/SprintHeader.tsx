@@ -3,31 +3,24 @@ import { formatDateRange } from "../../../shared/date";
 import styles from "./SprintHeader.module.css";
 
 interface SprintHeaderProps {
-  sprints: Sprint[];
+  sprint: Sprint;
   totalPoints: number;
   remainingPoints: number;
 }
 
 export function SprintHeader({
-  sprints,
+  sprint,
   totalPoints,
   remainingPoints,
 }: SprintHeaderProps) {
-  const title = sprints.length === 1 ? sprints[0].name : "All active sprints";
   const completedPoints = totalPoints - remainingPoints;
 
   return (
     <header className={styles.header}>
       <div>
-        <h2 className={styles.title}>{title}</h2>
+        <h2 className={styles.title}>{sprint.name}</h2>
         <p className={styles.dates}>
-          {sprints.length === 0
-            ? "No sprint is currently active."
-            : sprints
-                .map((sprint) =>
-                  formatDateRange(sprint.startDate, sprint.endDate),
-                )
-                .join(" · ")}
+          {formatDateRange(sprint.startDate, sprint.endDate)}
         </p>
       </div>
       <dl className={styles.stats}>

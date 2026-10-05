@@ -37,6 +37,7 @@ export interface Story {
   priority: StoryPriority;
   status: StoryStatus;
   branch: string;
+  imported: boolean;
   commits: Commit[];
   createdAt: string;
   completedAt: string | null;
@@ -52,7 +53,6 @@ export interface Project {
 
 export interface Sprint {
   id: string;
-  projectId: string;
   name: string;
   startDate: string;
   endDate: string;

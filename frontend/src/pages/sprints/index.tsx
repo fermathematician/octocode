@@ -2,32 +2,15 @@ import { useState } from "react";
 import { Button } from "../../components/shared/Button/Button";
 import { EmptyState } from "../../components/shared/EmptyState/EmptyState";
 import { ErrorState } from "../../components/shared/ErrorState/ErrorState";
-import { Select } from "../../components/shared/Select/Select";
 import { Spinner } from "../../components/shared/Spinner/Spinner";
 import { CreateSprintModal } from "../../components/sprints/CreateSprintModal";
 import { useSprints } from "./hooks/useSprints";
 import { SprintCard } from "./components/SprintCard";
 import styles from "./index.module.css";
 
-const ALL_PROJECTS = "all";
-
 export function SprintsPage() {
-  const {
-    entries,
-    projects,
-    loading,
-    error,
-    projectFilter,
-    setProjectFilter,
-    deleteSprint,
-    reload,
-  } = useSprints();
+  const { entries, loading, error, deleteSprint, reload } = useSprints();
   const [isCreating, setIsCreating] = useState(false);
-
-  const projectOptions = [
-    { value: ALL_PROJECTS, label: "All projects" },
-    ...projects.map((project) => ({ value: project.id, label: project.name })),
-  ];
 
   function handleDelete(sprintId: string, name: string) {
     const confirmed = window.confirm(
@@ -45,27 +28,11 @@ export function SprintsPage() {
         <div>
           <h1 className={styles.title}>Sprints</h1>
           <p className={styles.subtitle}>
-            All sprints across your projects, with progress.
+            One timeline across every project, with progress.
           </p>
         </div>
         <div className={styles.controls}>
-          <div className={styles.filter}>
-            <Select
-              id="sprints-project-filter"
-              label="Project"
-              value={projectFilter ?? ALL_PROJECTS}
-              options={projectOptions}
-              onChange={(value) =>
-                setProjectFilter(value === ALL_PROJECTS ? null : value)
-              }
-            />
-          </div>
-          <Button
-            onClick={() => setIsCreating(true)}
-            disabled={projects.length === 0}
-          >
-            Generate sprint
-          </Button>
+          <Button onClick={() => setIsCreating(true)}>Generate sprint</Button>
         </div>
       </header>
 
@@ -78,7 +45,7 @@ export function SprintsPage() {
       {!loading && !error && entries.length === 0 ? (
         <EmptyState
           title="No sprints yet"
-          description="Use Generate sprint to create a one-week sprint for a project."
+          description="Use Generate sprint to create a sprint and pick its date range."
         />
       ) : null}
 
@@ -97,8 +64,6 @@ export function SprintsPage() {
 
       {isCreating ? (
         <CreateSprintModal
-          projects={projects}
-          defaultProjectId={projectFilter}
           onClose={() => setIsCreating(false)}
           onCreated={() => {
             setIsCreating(false);

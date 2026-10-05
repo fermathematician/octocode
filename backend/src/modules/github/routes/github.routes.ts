@@ -7,7 +7,7 @@ import type { LinkRepositoryController } from "../controllers/LinkRepositoryCont
 import type { ListProjectBranchesController } from "../controllers/ListProjectBranchesController.js";
 import type { ListRepositoriesController } from "../controllers/ListRepositoriesController.js";
 import type { RecordLocalBranchesController } from "../controllers/RecordLocalBranchesController.js";
-import type { SyncCommitsController } from "../controllers/SyncCommitsController.js";
+import type { SyncRepositoriesController } from "../controllers/SyncRepositoriesController.js";
 import type { SyncStoryCommitsController } from "../controllers/SyncStoryCommitsController.js";
 import {
   parseLinkRepositoryBody,
@@ -20,7 +20,7 @@ export interface GithubControllers {
   recordLocalBranches: RecordLocalBranchesController;
   linkRepository: LinkRepositoryController;
   syncStoryCommits: SyncStoryCommitsController;
-  syncCommits: SyncCommitsController;
+  syncRepositories: SyncRepositoriesController;
   webhook: GithubWebhookController;
 }
 
@@ -50,7 +50,7 @@ export function createGithubRouter(
     validate({ body: parseRecordLocalBranchesBody }),
     controllers.recordLocalBranches.handle,
   );
-  router.post("/sync", controllers.syncCommits.handle);
+  router.post("/sync", controllers.syncRepositories.handle);
   router.post(
     "/stories/:storyId/sync-commits",
     validate({ params: parseStoryParams }),

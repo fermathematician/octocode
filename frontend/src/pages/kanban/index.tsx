@@ -15,7 +15,7 @@ export function KanbanPage() {
   const {
     columns,
     projects,
-    activeSprints,
+    activeSprint,
     projectFilter,
     setProjectFilter,
     totalPoints,
@@ -51,13 +51,9 @@ export function KanbanPage() {
         <div>
           <h1 className={styles.title}>Kanban</h1>
           <p className={styles.subtitle}>
-            {activeSprints.length === 0
-              ? "No active sprint."
-              : activeSprints
-                  .map((sprint) =>
-                    formatDateRange(sprint.startDate, sprint.endDate),
-                  )
-                  .join(" · ")}
+            {activeSprint
+              ? formatDateRange(activeSprint.startDate, activeSprint.endDate)
+              : "No active sprint."}
             {" · "}
             {remainingPoints} of {totalPoints} pts remaining
           </p>
@@ -81,21 +77,21 @@ export function KanbanPage() {
         <ErrorState message={error} onRetry={reload} />
       ) : null}
 
-      {!loading && !error && activeSprints.length === 0 ? (
+      {!loading && !error && !activeSprint ? (
         <EmptyState
           title="No active sprint"
           description="Start a sprint to move stories through the board."
         />
       ) : null}
 
-      {!loading && !error && activeSprints.length > 0 && !hasStories ? (
+      {!loading && !error && activeSprint && !hasStories ? (
         <EmptyState
           title="No stories in the active sprint"
           description="Add stories to the backlog to populate the board."
         />
       ) : null}
 
-      {!loading && !error && hasStories ? (
+      {!loading && !error && activeSprint && hasStories ? (
         <KanbanBoard
           columns={columns}
           projectNames={projectNames}

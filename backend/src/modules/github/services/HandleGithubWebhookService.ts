@@ -2,7 +2,7 @@ import { verifyGithubWebhookSignature } from "../../../infrastructure/github/Git
 import { AppError } from "../../../shared/appError.js";
 import type { GithubRepositoryRepository } from "../repositories/GithubRepositoryRepository.js";
 import type { GithubWebhookEventRepository } from "../repositories/GithubWebhookEventRepository.js";
-import type { SyncCommitsService } from "./SyncCommitsService.js";
+import type { SyncRepositoriesService } from "./SyncRepositoriesService.js";
 
 export interface HandleGithubWebhookInput {
   event: string | undefined;
@@ -16,7 +16,7 @@ export class HandleGithubWebhookService {
   constructor(
     private readonly repositories: GithubRepositoryRepository,
     private readonly webhookEvents: GithubWebhookEventRepository,
-    private readonly syncCommits: SyncCommitsService,
+    private readonly syncRepositories: SyncRepositoriesService,
     private readonly secret: string,
   ) {}
 
@@ -71,7 +71,7 @@ export class HandleGithubWebhookService {
     );
 
     for (const repository of repositories) {
-      await this.syncCommits.executeForRepository(repository);
+      await this.syncRepositories.executeForRepository(repository);
     }
   }
 }

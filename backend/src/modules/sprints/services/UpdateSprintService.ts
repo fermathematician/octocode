@@ -1,7 +1,6 @@
 import { AppError } from "../../../shared/appError.js";
-import { addDays, fromIsoDate } from "../../../shared/dates.js";
+import { fromIsoDate } from "../../../shared/dates.js";
 import { toSprintDto, type SprintDto } from "../../../shared/presenters.js";
-import { SPRINT_DURATION_DAYS } from "../constants.js";
 import type {
   SprintRepository,
   UpdateSprintData,
@@ -22,6 +21,17 @@ export class UpdateSprintService {
       throw new AppError("Sprint not found", 404);
     }
 
+    const startDate =
+      input.startDate !== undefined
+        ? fromIsoDate(input.startDate)
+        : existing.startDate;
+    const endDate =
+      input.endDate !== undefined ? fromIsoDate(input.endDate) : existing.endDate;
+
+    if (endDate < startDate) {
+      throw new AppError("The end date cannot be before the start date.", 400);
+    }
+
     const data: UpdateSprintData = {};
 
     if (input.name !== undefined) {
@@ -29,9 +39,11 @@ export class UpdateSprintService {
     }
 
     if (input.startDate !== undefined) {
-      const startDate = fromIsoDate(input.startDate);
       data.startDate = startDate;
-      data.endDate = addDays(startDate, SPRINT_DURATION_DAYS - 1);
+    }
+
+    if (input.endDate !== undefined) {
+      data.endDate = endDate;
     }
 
     const sprint = await this.sprints.update(sprintId, ownerId, data);

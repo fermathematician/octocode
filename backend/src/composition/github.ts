@@ -5,7 +5,7 @@ import { LinkRepositoryController } from "../modules/github/controllers/LinkRepo
 import { ListProjectBranchesController } from "../modules/github/controllers/ListProjectBranchesController.js";
 import { ListRepositoriesController } from "../modules/github/controllers/ListRepositoriesController.js";
 import { RecordLocalBranchesController } from "../modules/github/controllers/RecordLocalBranchesController.js";
-import { SyncCommitsController } from "../modules/github/controllers/SyncCommitsController.js";
+import { SyncRepositoriesController } from "../modules/github/controllers/SyncRepositoriesController.js";
 import { SyncStoryCommitsController } from "../modules/github/controllers/SyncStoryCommitsController.js";
 import { createGithubRouter } from "../modules/github/routes/github.routes.js";
 import { HandleGithubWebhookService } from "../modules/github/services/HandleGithubWebhookService.js";
@@ -13,7 +13,9 @@ import { LinkRepositoryService } from "../modules/github/services/LinkRepository
 import { ListProjectBranchesService } from "../modules/github/services/ListProjectBranchesService.js";
 import { ListRepositoriesService } from "../modules/github/services/ListRepositoriesService.js";
 import { RecordLocalBranchesService } from "../modules/github/services/RecordLocalBranchesService.js";
+import { SyncBranchStoriesService } from "../modules/github/services/SyncBranchStoriesService.js";
 import { SyncCommitsService } from "../modules/github/services/SyncCommitsService.js";
+import { SyncRepositoriesService } from "../modules/github/services/SyncRepositoriesService.js";
 import { SyncStoryCommitsService } from "../modules/github/services/SyncStoryCommitsService.js";
 import * as shared from "./shared.js";
 
@@ -69,13 +71,28 @@ const syncCommitsService = new SyncCommitsService(
   syncStoryCommitsService,
 );
 
-const syncCommits = new SyncCommitsController(syncCommitsService);
+const syncRepositoriesService = new SyncRepositoriesService(
+  new SyncBranchStoriesService(
+    shared.githubRepositoryRepository,
+    shared.storyRepository,
+    shared.sprintRepository,
+    shared.commitRepository,
+    shared.oauthAccountRepository,
+    shared.tokenCipher,
+    shared.githubClient,
+  ),
+  syncCommitsService,
+);
+
+const syncRepositories = new SyncRepositoriesController(
+  syncRepositoriesService,
+);
 
 const webhook = new GithubWebhookController(
   new HandleGithubWebhookService(
     shared.githubRepositoryRepository,
     shared.githubWebhookEventRepository,
-    syncCommitsService,
+    syncRepositoriesService,
     env.github.webhookSecret,
   ),
 );
@@ -87,11 +104,11 @@ export const githubRouter = createGithubRouter(
     recordLocalBranches,
     linkRepository,
     syncStoryCommits,
-    syncCommits,
+    syncRepositories,
     webhook,
   },
   requireAuth,
 );
 
 /** Used by the background interval in `server.ts`. */
-export const backgroundCommitSync = syncCommitsService;
+export const backgroundSync = syncRepositoriesService;

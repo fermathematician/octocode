@@ -15,7 +15,7 @@ const list = new ListSprintsController(
 );
 
 const create = new CreateSprintController(
-  new CreateSprintService(shared.sprintRepository, shared.projectRepository),
+  new CreateSprintService(shared.sprintRepository),
 );
 
 const update = new UpdateSprintController(

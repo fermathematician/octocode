@@ -2,16 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getProjects } from "../../../api/projects";
 import { getSprints } from "../../../api/sprints";
 import { getStories } from "../../../api/stories";
-import {
-  buildBurndown,
-  selectActiveSprints,
-  type BurndownPoint,
-} from "../../../domain/sprint";
+import { buildBurndown, selectActiveSprint } from "../../../domain/sprint";
+import type { BurndownPoint } from "../../../domain/sprint";
 import type { Project, Sprint, Story } from "../../../domain/types";
 
 interface UseBurndownResult {
   points: BurndownPoint[];
-  activeSprints: Sprint[];
+  activeSprint: Sprint | null;
   projects: Project[];
   projectFilter: string | null;
   setProjectFilter: (projectId: string | null) => void;
@@ -69,27 +66,23 @@ export function useBurndown(): UseBurndownResult {
     setReloadToken((token) => token + 1);
   }, []);
 
-  const activeSprints = useMemo(
-    () => selectActiveSprints(sprints, projectFilter),
-    [sprints, projectFilter],
-  );
+  const activeSprint = useMemo(() => selectActiveSprint(sprints), [sprints]);
 
-  const sprintIds = useMemo(
-    () => new Set(activeSprints.map((sprint) => sprint.id)),
-    [activeSprints],
-  );
+  const sprintStories = useMemo(() => {
+    if (!activeSprint) {
+      return [];
+    }
 
-  const sprintStories = useMemo(
-    () =>
-      stories.filter(
-        (story) => story.sprintId !== null && sprintIds.has(story.sprintId),
-      ),
-    [stories, sprintIds],
-  );
+    return stories.filter(
+      (story) =>
+        story.sprintId === activeSprint.id &&
+        (projectFilter === null || story.projectId === projectFilter),
+    );
+  }, [stories, activeSprint, projectFilter]);
 
   const points = useMemo(
-    () => buildBurndown(activeSprints, sprintStories),
-    [activeSprints, sprintStories],
+    () => buildBurndown(activeSprint ? [activeSprint] : [], sprintStories),
+    [activeSprint, sprintStories],
   );
 
   const totalPoints = useMemo(
@@ -107,7 +100,7 @@ export function useBurndown(): UseBurndownResult {
 
   return {
     points,
-    activeSprints,
+    activeSprint,
     projects,
     projectFilter,
     setProjectFilter,

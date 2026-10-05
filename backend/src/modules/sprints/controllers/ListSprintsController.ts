@@ -11,15 +11,10 @@ export class ListSprintsController {
       throw new AppError("Authentication required", 401);
     }
 
-    const { projectId, pagination } = request.validated?.query as {
-      projectId?: string;
+    const { pagination } = request.validated?.query as {
       pagination: Pagination;
     };
-    const page = await this.service.execute(
-      request.auth.userId,
-      projectId,
-      pagination,
-    );
+    const page = await this.service.execute(request.auth.userId, pagination);
     response.json(page);
   };
 }

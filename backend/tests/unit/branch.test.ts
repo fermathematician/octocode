@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   branchNameFromTitle,
   slugifyTitle,
+  titleFromBranch,
   uniqueBranchName,
 } from "../../src/shared/branch.js";
 
@@ -29,5 +30,15 @@ describe("branch naming", () => {
       uniqueBranchName("feat/x", ["feat/x", "feat/x-2"]),
       "feat/x-3",
     );
+  });
+
+  it("turns a branch into a title", () => {
+    assert.equal(titleFromBranch("feat/add-login-flow"), "Add login flow");
+    assert.equal(titleFromBranch("fix_typo"), "Fix typo");
+    assert.equal(titleFromBranch("main"), "Main");
+  });
+
+  it("keeps a branch name when there is nothing to humanize", () => {
+    assert.equal(titleFromBranch("feat/"), "feat/");
   });
 });

@@ -3,7 +3,7 @@ import { getProjects } from "../../../api/projects";
 import { getSprints } from "../../../api/sprints";
 import { getStories, updateStoryStatus } from "../../../api/stories";
 import { syncAllCommits, syncStoryCommits } from "../../../api/github";
-import { selectActiveSprints } from "../../../domain/sprint";
+import { selectActiveSprint } from "../../../domain/sprint";
 import { compareStoriesByPriorityThenAge } from "../../../domain/story";
 import { STORY_STATUSES } from "../../../domain/types";
 import type { Project, Sprint, Story, StoryStatus } from "../../../domain/types";
@@ -16,7 +16,7 @@ export interface KanbanColumnData {
 interface UseKanbanResult {
   columns: KanbanColumnData[];
   projects: Project[];
-  activeSprints: Sprint[];
+  activeSprint: Sprint | null;
   projectFilter: string | null;
   setProjectFilter: (projectId: string | null) => void;
   totalPoints: number;
@@ -71,7 +71,7 @@ export function useKanban(): UseKanbanResult {
     };
   }, [reloadToken]);
 
-  // Best-effort sync so the board reflects recent pushes without a manual click.
+  // Best-effort sync so the board reflects new branches and pushes without a manual click.
   useEffect(() => {
     let cancelled = false;
 
@@ -99,23 +99,19 @@ export function useKanban(): UseKanbanResult {
     setReloadToken((token) => token + 1);
   }, []);
 
-  const activeSprints = useMemo(
-    () => selectActiveSprints(sprints, projectFilter),
-    [sprints, projectFilter],
-  );
+  const activeSprint = useMemo(() => selectActiveSprint(sprints), [sprints]);
 
-  const sprintIds = useMemo(
-    () => new Set(activeSprints.map((sprint) => sprint.id)),
-    [activeSprints],
-  );
+  const sprintStories = useMemo(() => {
+    if (!activeSprint) {
+      return [];
+    }
 
-  const sprintStories = useMemo(
-    () =>
-      stories.filter(
-        (story) => story.sprintId !== null && sprintIds.has(story.sprintId),
-      ),
-    [stories, sprintIds],
-  );
+    return stories.filter(
+      (story) =>
+        story.sprintId === activeSprint.id &&
+        (projectFilter === null || story.projectId === projectFilter),
+    );
+  }, [stories, activeSprint, projectFilter]);
 
   const columns = useMemo<KanbanColumnData[]>(
     () =>
@@ -160,7 +156,7 @@ export function useKanban(): UseKanbanResult {
   return {
     columns,
     projects,
-    activeSprints,
+    activeSprint,
     projectFilter,
     setProjectFilter,
     totalPoints,

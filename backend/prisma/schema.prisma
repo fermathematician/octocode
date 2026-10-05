@@ -53,6 +53,7 @@ model User {
   accounts       OAuthAccount[]
   sessions       Session[]
   projects       Project[]
+  sprints        Sprint[]
   githubRepositories GithubRepository[]
   calendarEvents CalendarEvent[]
   calendarSyncState CalendarSyncState?
@@ -102,7 +103,6 @@ model Project {
   updatedAt DateTime @updatedAt
 
   repository GithubRepository?
-  sprints    Sprint[]
   stories    Story[]
   localBranches LocalBranch[]
 
@@ -149,8 +149,8 @@ model LocalBranch {
 
 model Sprint {
   id        String   @id @default(cuid())
-  projectId String
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   name      String
   startDate DateTime
   endDate   DateTime
@@ -158,7 +158,7 @@ model Sprint {
 
   stories Story[]
 
-  @@index([projectId])
+  @@index([ownerId])
 }
 
 model Story {
@@ -172,6 +172,7 @@ model Story {
   priority    StoryPriority @default(MEDIUM)
   status      StoryStatus   @default(BACKLOG)
   branch      String
+  imported    Boolean       @default(false)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   completedAt DateTime?

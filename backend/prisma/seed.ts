@@ -49,7 +49,7 @@ async function main(): Promise<void> {
 
   const sprint = await prisma.sprint.create({
     data: {
-      projectId: project.id,
+      ownerId: user.id,
       name: "Sprint 1",
       startDate: isoDate(-2),
       endDate: isoDate(4),

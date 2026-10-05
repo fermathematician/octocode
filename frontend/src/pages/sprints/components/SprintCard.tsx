@@ -22,7 +22,9 @@ export function SprintCard({ entry, onDelete }: SprintCardProps) {
       <header className={styles.header}>
         <div>
           <span className={styles.project}>
-            {entry.project?.name ?? "Unknown project"}
+            {entry.projectNames.length > 0
+              ? entry.projectNames.join(", ")
+              : "No projects"}
           </span>
           <h3 className={styles.name}>{entry.sprint.name}</h3>
         </div>

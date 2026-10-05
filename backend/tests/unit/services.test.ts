@@ -42,8 +42,8 @@ describe("CreateStoryService", () => {
     const { store, projects, sprints, stories } = setup();
     const user = store.seedUser();
     const project = store.seedProject(user.id);
-    store.seedSprint(project.id, { startDate: new Date("2030-01-01") });
-    const latest = store.seedSprint(project.id, {
+    store.seedSprint(user.id, { startDate: new Date("2030-01-01") });
+    const latest = store.seedSprint(user.id, {
       startDate: new Date("2030-02-01"),
     });
 
@@ -114,11 +114,11 @@ describe("CreateStoryService", () => {
 });
 
 describe("MoveStoryToSprintService", () => {
-  it("moves a story into a sprint of the same project", async () => {
+  it("moves a story into a sprint", async () => {
     const { store, sprints, stories } = setup();
     const user = store.seedUser();
     const project = store.seedProject(user.id);
-    const sprint = store.seedSprint(project.id);
+    const sprint = store.seedSprint(user.id);
     const story = store.seedStory(project.id);
 
     const service = new MoveStoryToSprintService(stories, sprints);
@@ -131,7 +131,7 @@ describe("MoveStoryToSprintService", () => {
     const { store, sprints, stories } = setup();
     const user = store.seedUser();
     const project = store.seedProject(user.id);
-    const sprint = store.seedSprint(project.id);
+    const sprint = store.seedSprint(user.id);
     const story = store.seedStory(project.id, { sprintId: sprint.id });
 
     const service = new MoveStoryToSprintService(stories, sprints);
@@ -140,19 +140,19 @@ describe("MoveStoryToSprintService", () => {
     assert.equal(moved.sprintId, null);
   });
 
-  it("rejects a sprint from another project", async () => {
+  it("rejects a sprint owned by another user", async () => {
     const { store, sprints, stories } = setup();
     const user = store.seedUser();
+    const stranger = store.seedUser();
     const project = store.seedProject(user.id);
-    const otherProject = store.seedProject(user.id);
-    const otherSprint = store.seedSprint(otherProject.id);
+    const strangerSprint = store.seedSprint(stranger.id);
     const story = store.seedStory(project.id);
 
     const service = new MoveStoryToSprintService(stories, sprints);
 
     await assert.rejects(
-      () => service.execute(user.id, story.id, otherSprint.id),
-      isAppError(400),
+      () => service.execute(user.id, story.id, strangerSprint.id),
+      isAppError(404),
     );
   });
 
@@ -219,35 +219,35 @@ describe("UpdateStoryStatusService", () => {
 });
 
 describe("CreateSprintService", () => {
-  it("computes a 7-day window", async () => {
-    const { store, projects, sprints } = setup();
+  it("creates a sprint with the given date range", async () => {
+    const { store, sprints } = setup();
     const user = store.seedUser();
-    const project = store.seedProject(user.id);
 
-    const service = new CreateSprintService(sprints, projects);
+    const service = new CreateSprintService(sprints);
     const sprint = await service.execute(user.id, {
-      projectId: project.id,
       name: "Sprint 1",
       startDate: "2030-02-01",
+      endDate: "2030-02-14",
     });
 
     assert.equal(sprint.startDate, "2030-02-01");
-    assert.equal(sprint.endDate, "2030-02-07");
+    assert.equal(sprint.endDate, "2030-02-14");
+    assert.equal(sprint.name, "Sprint 1");
   });
 
-  it("rejects an unknown project", async () => {
-    const { store, projects, sprints } = setup();
+  it("rejects an end date before the start date", async () => {
+    const { store, sprints } = setup();
     const user = store.seedUser();
-    const service = new CreateSprintService(sprints, projects);
+    const service = new CreateSprintService(sprints);
 
     await assert.rejects(
       () =>
         service.execute(user.id, {
-          projectId: "missing",
           name: "Sprint 1",
-          startDate: "2030-02-01",
+          startDate: "2030-02-10",
+          endDate: "2030-02-01",
         }),
-      isAppError(404),
+      isAppError(400),
     );
   });
 });
