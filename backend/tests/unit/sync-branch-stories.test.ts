@@ -135,7 +135,7 @@ describe("SyncBranchStoriesService", () => {
     const story = store.stories[0];
     assert.equal(story?.branch, "feat/new");
     assert.equal(story?.title, "New");
-    assert.equal(story?.status, "CODE");
+    assert.equal(story?.status, "BACKLOG");
     assert.equal(story?.storyPoints, 1);
     assert.equal(story?.priority, "MEDIUM");
     assert.equal(story?.imported, true);

@@ -126,7 +126,7 @@ export class SyncBranchStoriesService {
           title: titleFromBranch(branch.name),
           storyPoints: 1,
           priority: StoryPriority.MEDIUM,
-          status: StoryStatus.CODE,
+          status: StoryStatus.BACKLOG,
           branch: branch.name,
           imported: true,
         });
