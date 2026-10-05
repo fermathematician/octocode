@@ -23,6 +23,7 @@ export function KanbanPage() {
     loading,
     error,
     moveStory,
+    updateStory,
     syncCommits,
     reload,
   } = useKanban();
@@ -108,6 +109,7 @@ export function KanbanPage() {
           projectName={projectNames[selectedStory.projectId]}
           onClose={() => setSelectedStoryId(null)}
           onSyncCommits={() => syncCommits(selectedStory.id)}
+          onUpdateStory={(input) => updateStory(selectedStory.id, input)}
         />
       ) : null}
     </section>

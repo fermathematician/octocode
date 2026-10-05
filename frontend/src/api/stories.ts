@@ -26,6 +26,22 @@ export function createStory(input: CreateStoryInput): Promise<Story> {
   });
 }
 
+export interface UpdateStoryInput {
+  title?: string;
+  storyPoints?: StoryPoints;
+  priority?: StoryPriority;
+}
+
+export function updateStory(
+  storyId: string,
+  input: UpdateStoryInput,
+): Promise<Story> {
+  return apiFetch<Story>(`/stories/${storyId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
 export function assignStoryBranch(
   storyId: string,
   branch: string,

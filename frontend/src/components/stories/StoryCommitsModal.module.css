@@ -50,6 +50,19 @@
   gap: var(--space-3);
 }
 
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-4);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
 .message {
   font-size: 0.8rem;
   color: var(--color-text-muted);

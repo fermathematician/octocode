@@ -404,13 +404,14 @@ frontend/src/
   project — the branch list and the newest 100 commits of the default branch, with dates (and any
   fetch error).
 - **Kanban** (`pages/kanban`): 5 status columns, drag-and-drop, and a project filter. Click a card
-  to open a modal with its branch, commit count, the full commit list (with dates), and a **Sync
-  commits** button.
+  to open a modal with its branch, commit count, the full commit list (with dates), a **Sync
+  commits** button, and an editor for the story points.
 - **Graph** (`pages/graph`): burndown chart + sprint header, project filter.
 - **Project** (`pages/project`): tabs `Backlog` (story CRUD/branch/commits) and `Progress`
   (sprint history). When "All projects" is selected, an **Add project** button opens a modal that
   lists your GitHub repositories with a search box. Clicking a story card opens a detail modal with
-  the branch picker, the commit list (with dates), and a **Sync commits** button.
+  the branch picker, the commit list (with dates), a **Sync commits** button, and an editor for the
+  story points.
 
 ### 5.6 Data flow
 
@@ -764,7 +765,7 @@ unmerged commits, otherwise the repository’s **default branch** (merged or mis
 **Branch cards.** `SyncBranchStoriesService` lists the repository's branches and creates a card for
 every branch that has no story yet and whose newest commit is on/after the active sprint's
 `startDate` (the default branch is skipped). The card is titled from the branch (`feat/add-login` →
-“Add login”), gets `1` point, `medium` priority, `code` status, and is marked `imported`. Deleting a
+“Add login”), gets `1` point, `medium` priority, `backlog` status, and is marked `imported`. Deleting a
 branch upstream does not remove its card. A true cross-user “everyone on the project” view still
 needs project membership (not implemented).
 

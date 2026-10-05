@@ -31,6 +31,7 @@ export function BacklogPage({
     setPriorityFilter,
     assignBranch,
     addStory,
+    updateStory,
     syncCommits,
     reload,
   } = useBacklog(projectId);
@@ -98,6 +99,9 @@ export function BacklogPage({
           }}
           onSyncCommits={async () => {
             await syncCommits(selectedStory.id);
+          }}
+          onUpdateStory={async (input) => {
+            await updateStory(selectedStory.id, input);
           }}
         />
       ) : null}

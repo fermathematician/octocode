@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { ApiError } from "../../api/http";
+import type { UpdateStoryInput } from "../../api/stories";
 import type { Story } from "../../domain/types";
 import { Button } from "../shared/Button/Button";
 import { Modal } from "../shared/Modal/Modal";
 import { CommitList } from "./CommitList";
+import { StoryPointsEditor } from "./StoryPointsEditor";
 import styles from "./StoryCommitsModal.module.css";
 
 interface StoryCommitsModalProps {
@@ -11,6 +13,7 @@ interface StoryCommitsModalProps {
   projectName?: string;
   onClose: () => void;
   onSyncCommits: () => Promise<void>;
+  onUpdateStory: (input: UpdateStoryInput) => Promise<void>;
 }
 
 export function StoryCommitsModal({
@@ -18,6 +21,7 @@ export function StoryCommitsModal({
   projectName,
   onClose,
   onSyncCommits,
+  onUpdateStory,
 }: StoryCommitsModalProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -55,6 +59,15 @@ export function StoryCommitsModal({
             </dd>
           </div>
         </dl>
+
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>Story points</h3>
+          <StoryPointsEditor
+            key={story.id}
+            storyPoints={story.storyPoints}
+            onSave={(storyPoints) => onUpdateStory({ storyPoints })}
+          />
+        </section>
 
         <div className={styles.actions}>
           <Button

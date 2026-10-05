@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getProjects } from "../../../api/projects";
 import { getSprints } from "../../../api/sprints";
-import { getStories, updateStoryStatus } from "../../../api/stories";
+import {
+  getStories,
+  updateStory as updateStoryRequest,
+  updateStoryStatus,
+  type UpdateStoryInput,
+} from "../../../api/stories";
 import { syncAllCommits, syncStoryCommits } from "../../../api/github";
 import { selectActiveSprint } from "../../../domain/sprint";
 import { compareStoriesByPriorityThenAge } from "../../../domain/story";
@@ -24,6 +29,7 @@ interface UseKanbanResult {
   loading: boolean;
   error: string | null;
   moveStory: (storyId: string, status: StoryStatus) => Promise<void>;
+  updateStory: (storyId: string, input: UpdateStoryInput) => Promise<void>;
   syncCommits: (storyId: string) => Promise<void>;
   reload: () => void;
 }
@@ -153,6 +159,16 @@ export function useKanban(): UseKanbanResult {
     setStories(await getStories());
   }, []);
 
+  const updateStory = useCallback(
+    async (storyId: string, input: UpdateStoryInput) => {
+      const updated = await updateStoryRequest(storyId, input);
+      setStories((current) =>
+        current.map((story) => (story.id === storyId ? updated : story)),
+      );
+    },
+    [],
+  );
+
   return {
     columns,
     projects,
@@ -164,6 +180,7 @@ export function useKanban(): UseKanbanResult {
     loading,
     error,
     moveStory,
+    updateStory,
     syncCommits,
     reload,
   };

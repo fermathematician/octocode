@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { ApiError } from "../../../api/http";
+import type { UpdateStoryInput } from "../../../api/stories";
 import { Badge, type BadgeTone } from "../../../components/shared/Badge/Badge";
 import { Button } from "../../../components/shared/Button/Button";
 import { Modal } from "../../../components/shared/Modal/Modal";
 import { CommitList } from "../../../components/stories/CommitList";
+import { StoryPointsEditor } from "../../../components/stories/StoryPointsEditor";
 import {
   STORY_PRIORITY_LABELS,
   STORY_STATUS_LABELS,
@@ -18,6 +20,7 @@ interface StoryDetailModalProps {
   onClose: () => void;
   onAssignBranch: (branch: string) => Promise<void>;
   onSyncCommits: () => Promise<void>;
+  onUpdateStory: (input: UpdateStoryInput) => Promise<void>;
 }
 
 const PRIORITY_TONES: Record<Story["priority"], BadgeTone> = {
@@ -33,6 +36,7 @@ export function StoryDetailModal({
   onClose,
   onAssignBranch,
   onSyncCommits,
+  onUpdateStory,
 }: StoryDetailModalProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
@@ -86,6 +90,15 @@ export function StoryDetailModal({
             </dd>
           </div>
         </dl>
+
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>Story points</h3>
+          <StoryPointsEditor
+            key={story.id}
+            storyPoints={story.storyPoints}
+            onSave={(storyPoints) => onUpdateStory({ storyPoints })}
+          />
+        </section>
 
         <section className={styles.section}>
           <h3 className={styles.sectionTitle}>Branch</h3>
