@@ -40,6 +40,10 @@ export class UpdateCalendarEventService {
       data.notes = input.notes;
     }
 
+    if (input.completed !== undefined) {
+      data.completed = input.completed;
+    }
+
     const event = await this.events.update(eventId, userId, data);
 
     if (!event) {

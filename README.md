@@ -216,8 +216,9 @@ and tags the local ones.
 **Sprint**: `{ id, name, startDate, endDate }` (ISO dates). Spans every project; the start/end
 range is user-defined.
 
-**CalendarEvent**: `{ id, type, title, date, startTime, notes }` where
-`type` is `"reminder" | "task" | "meeting"`. Owned by a user.
+**CalendarEvent**: `{ id, type, title, date, startTime, notes, completed }` where
+`type` is `"reminder" | "task" | "meeting"`. Owned by a user. `completed` is a local-only done
+flag used for `"task"` items (never sent to or read from Google Calendar).
 
 ### 3.2 Casing conventions at the boundary
 
@@ -395,11 +396,13 @@ frontend/src/
 ### 5.5 Screens
 
 - **Login** (`auth/LoginScreen`): "Sign in with GitHub" → redirects to `GET /auth/github`.
-- **Today** (`pages/today`): spreadsheet of today's calendar items + quick reminder form.
+- **Today** (`pages/today`): spreadsheet of today's calendar items + quick reminder form. Task rows
+  have a **done** checkbox and **Edit** / **Delete** actions.
 - **Sprints** (`pages/sprints`): every sprint across projects with status
   (upcoming/active/past), points/story progress, a project filter, and **Generate sprint** /
   **Delete** actions.
-- **Calendar** (`pages/calendar`): month grid, day panel, add event.
+- **Calendar** (`pages/calendar`): month grid, day panel, add event. Tasks in the day panel can be
+  ticked done, edited, and deleted.
 - **Debug** (`pages/debug`): shows exactly what the app fetches from GitHub for each linked
   project — the branch list and the newest 100 commits of the default branch, with dates (and any
   fetch error).
@@ -522,7 +525,7 @@ Enums: `OAuthProvider`, `StoryPriority`, `StoryStatus`, `CalendarEventType`.
 | `Sprint` | Time box across all projects | `ownerId → User`; `startDate`, `endDate` |
 | `Story` | Unit of work | `[projectId, branch]` unique; `priority`, `status`, `imported`, `completedAt`; has commits |
 | `Commit` | A commit on a branch | `[repositoryId, branch, sha]` unique; `storyId? → Story` |
-| `CalendarEvent` | Planner item | `userId → User`; `type`, `date`, `startTime`; `source` (LOCAL/GOOGLE), `externalId`, `externalUpdatedAt`; `[userId, externalId]` unique |
+| `CalendarEvent` | Planner item | `userId → User`; `type`, `date`, `startTime`, `completed` (local-only, for tasks); `source` (LOCAL/GOOGLE), `externalId`, `externalUpdatedAt`; `[userId, externalId]` unique |
 | `GithubWebhookEvent` | Webhook idempotency | `deliveryId` unique — **reserved, not used yet** (§13) |
 
 | `CalendarSyncState` | Google sync cursor | `userId` unique; `calendarId`, `syncToken`, `lastSyncedAt` |
@@ -613,7 +616,7 @@ All routes except `/health` and the two OAuth endpoints require a valid session 
 | PATCH | `/stories/:storyId/sprint` | required | Move to sprint `{ sprintId }` (`null` clears the sprint) |
 | GET | `/calendar-events?date=&limit=&cursor=` | required | List the actor's calendar events (paginated) |
 | POST | `/calendar-events` | required | Create `{ type, title, date, startTime }` |
-| PATCH | `/calendar-events/:eventId` | required | Update `{ type?, title?, date?, startTime?, notes? }` |
+| PATCH | `/calendar-events/:eventId` | required | Update `{ type?, title?, date?, startTime?, notes?, completed? }` |
 | DELETE | `/calendar-events/:eventId` | required | Delete an event (204) |
 | GET | `/calendar/google` | required | Start linking Google Calendar (redirect to Google) |
 | GET | `/calendar/google/callback` | required | Google OAuth callback → redirect to the app |

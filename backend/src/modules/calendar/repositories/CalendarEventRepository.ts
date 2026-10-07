@@ -24,6 +24,7 @@ export interface UpdateCalendarEventData {
   date?: Date;
   startTime?: string;
   notes?: string;
+  completed?: boolean;
 }
 
 export interface UpsertExternalCalendarEventData {

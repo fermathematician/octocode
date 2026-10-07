@@ -65,6 +65,7 @@ export interface CalendarEvent {
   date: string;
   startTime: string;
   notes: string;
+  completed: boolean;
   source: "local" | "google";
 }
 

@@ -1,6 +1,9 @@
+import { useState } from "react";
+import { CalendarEventEditModal } from "../../components/calendar/CalendarEventEditModal";
 import { EmptyState } from "../../components/shared/EmptyState/EmptyState";
 import { ErrorState } from "../../components/shared/ErrorState/ErrorState";
 import { Spinner } from "../../components/shared/Spinner/Spinner";
+import type { CalendarEvent } from "../../domain/types";
 import { parseIsoDate, todayIso } from "../../shared/date";
 import { useTodayAgenda } from "./hooks/useTodayAgenda";
 import { ReminderForm } from "./components/ReminderForm";
@@ -8,13 +11,29 @@ import { TodayTable } from "./components/TodayTable";
 import styles from "./index.module.css";
 
 export function TodayPage() {
-  const { events, loading, error, addReminder, reload } = useTodayAgenda();
+  const {
+    events,
+    loading,
+    error,
+    addReminder,
+    updateEvent,
+    removeEvent,
+    toggleCompleted,
+    reload,
+  } = useTodayAgenda();
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
 
   const dateLabel = parseIsoDate(todayIso()).toLocaleDateString(undefined, {
     weekday: "long",
     month: "long",
     day: "numeric",
   });
+
+  function handleDelete(event: CalendarEvent) {
+    if (window.confirm(`Delete "${event.title}"?`)) {
+      void removeEvent(event.id);
+    }
+  }
 
   return (
     <section className={styles.page}>
@@ -39,7 +58,14 @@ export function TodayPage() {
                 description="Add a reminder or schedule something on the calendar."
               />
             ) : (
-              <TodayTable events={events} />
+              <TodayTable
+                events={events}
+                onToggleCompleted={(event) => {
+                  void toggleCompleted(event);
+                }}
+                onEdit={(event) => setEditingEvent(event)}
+                onDelete={handleDelete}
+              />
             )}
           </div>
 
@@ -48,6 +74,17 @@ export function TodayPage() {
             <ReminderForm onSubmit={addReminder} />
           </aside>
         </div>
+      ) : null}
+
+      {editingEvent ? (
+        <CalendarEventEditModal
+          event={editingEvent}
+          onSave={async (eventId, input) => {
+            await updateEvent(eventId, input);
+            setEditingEvent(null);
+          }}
+          onClose={() => setEditingEvent(null)}
+        />
       ) : null}
     </section>
   );

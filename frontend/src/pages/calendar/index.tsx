@@ -1,7 +1,10 @@
 import { useState } from "react";
+import { CalendarEventEditModal } from "../../components/calendar/CalendarEventEditModal";
+import { CalendarEventForm } from "../../components/calendar/CalendarEventForm";
 import { Button } from "../../components/shared/Button/Button";
 import { ErrorState } from "../../components/shared/ErrorState/ErrorState";
 import { Spinner } from "../../components/shared/Spinner/Spinner";
+import type { CalendarEvent } from "../../domain/types";
 import {
   formatMonthLabel,
   formatShortDate,
@@ -9,18 +12,27 @@ import {
   todayIso,
 } from "../../shared/date";
 import { useCalendarEvents } from "./hooks/useCalendarEvents";
-import { CalendarEventForm } from "./components/CalendarEventForm";
 import { CalendarEventList } from "./components/CalendarEventList";
 import { CalendarGrid } from "./components/CalendarGrid";
 import { CalendarSyncBar } from "./components/CalendarSyncBar";
 import styles from "./index.module.css";
 
 export function CalendarPage() {
-  const { events, loading, error, addEvent, reload } = useCalendarEvents();
+  const {
+    events,
+    loading,
+    error,
+    addEvent,
+    updateEvent,
+    removeEvent,
+    toggleCompleted,
+    reload,
+  } = useCalendarEvents();
   const [visibleMonth, setVisibleMonth] = useState(() =>
     startOfMonth(new Date()),
   );
   const [selectedDate, setSelectedDate] = useState(() => todayIso());
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
 
   const selectedEvents = events.filter(
     (event) => event.date === selectedDate,
@@ -36,6 +48,12 @@ export function CalendarPage() {
     setVisibleMonth(
       (current) => new Date(current.getFullYear(), current.getMonth() + 1, 1),
     );
+  }
+
+  function handleDelete(event: CalendarEvent) {
+    if (window.confirm(`Delete "${event.title}"?`)) {
+      void removeEvent(event.id);
+    }
   }
 
   return (
@@ -81,7 +99,14 @@ export function CalendarPage() {
               <h2 className={styles.panelTitle}>
                 {formatShortDate(selectedDate)}
               </h2>
-              <CalendarEventList events={selectedEvents} />
+              <CalendarEventList
+                events={selectedEvents}
+                onToggleCompleted={(event) => {
+                  void toggleCompleted(event);
+                }}
+                onEdit={(event) => setEditingEvent(event)}
+                onDelete={handleDelete}
+              />
             </section>
             <section className={styles.panelSection}>
               <h2 className={styles.panelTitle}>Add event</h2>
@@ -95,6 +120,17 @@ export function CalendarPage() {
             </section>
           </aside>
         </div>
+      ) : null}
+
+      {editingEvent ? (
+        <CalendarEventEditModal
+          event={editingEvent}
+          onSave={async (eventId, input) => {
+            await updateEvent(eventId, input);
+            setEditingEvent(null);
+          }}
+          onClose={() => setEditingEvent(null)}
+        />
       ) : null}
     </section>
   );

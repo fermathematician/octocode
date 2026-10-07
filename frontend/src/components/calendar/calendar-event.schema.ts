@@ -1,7 +1,7 @@
 import {
   CALENDAR_EVENT_TYPES,
   type CalendarEventType,
-} from "../../../domain/types";
+} from "../../domain/types";
 
 export interface CalendarEventFormValues {
   type: CalendarEventType;

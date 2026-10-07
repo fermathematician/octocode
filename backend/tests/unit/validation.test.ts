@@ -202,6 +202,19 @@ describe("calendar validation", () => {
     });
   });
 
+  it("accepts a completed flag in an update", () => {
+    assert.deepEqual(parseUpdateCalendarEventBody({ completed: true }), {
+      completed: true,
+    });
+  });
+
+  it("rejects a non-boolean completed flag", () => {
+    assert.throws(
+      () => parseUpdateCalendarEventBody({ completed: "yes" }),
+      ValidationError,
+    );
+  });
+
   it("requires at least one update field", () => {
     assert.throws(() => parseUpdateCalendarEventBody({}), ValidationError);
   });

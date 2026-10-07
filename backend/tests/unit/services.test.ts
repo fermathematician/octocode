@@ -5,12 +5,14 @@ import {
   StoryStatus,
 } from "../../src/generated/prisma/client.js";
 import { GetCurrentUserService } from "../../src/modules/auth/services/GetCurrentUserService.js";
+import { UpdateCalendarEventService } from "../../src/modules/calendar/services/UpdateCalendarEventService.js";
 import { CreateSprintService } from "../../src/modules/sprints/services/CreateSprintService.js";
 import { CreateStoryService } from "../../src/modules/stories/services/CreateStoryService.js";
 import { MoveStoryToSprintService } from "../../src/modules/stories/services/MoveStoryToSprintService.js";
 import { UpdateStoryStatusService } from "../../src/modules/stories/services/UpdateStoryStatusService.js";
 import { AppError } from "../../src/shared/appError.js";
 import {
+  InMemoryCalendarEventRepository,
   InMemoryGithubRepositoryRepository,
   InMemoryProjectRepository,
   InMemorySprintRepository,
@@ -29,6 +31,7 @@ function setup() {
     stories: new InMemoryStoryRepository(store),
     users: new InMemoryUserRepository(store),
     githubRepositories: new InMemoryGithubRepositoryRepository(store),
+    calendarEvents: new InMemoryCalendarEventRepository(store),
   };
 }
 
@@ -248,6 +251,35 @@ describe("CreateSprintService", () => {
           endDate: "2030-02-01",
         }),
       isAppError(400),
+    );
+  });
+});
+
+describe("UpdateCalendarEventService", () => {
+  it("marks a task completed", async () => {
+    const { store, calendarEvents } = setup();
+    const user = store.seedUser();
+    const event = store.seedCalendarEvent(user.id, { completed: false });
+
+    const service = new UpdateCalendarEventService(calendarEvents);
+    const updated = await service.execute(user.id, event.id, {
+      completed: true,
+    });
+
+    assert.equal(updated.completed, true);
+  });
+
+  it("rejects an event the actor does not own", async () => {
+    const { store, calendarEvents } = setup();
+    const owner = store.seedUser();
+    const stranger = store.seedUser();
+    const event = store.seedCalendarEvent(owner.id);
+
+    const service = new UpdateCalendarEventService(calendarEvents);
+
+    await assert.rejects(
+      () => service.execute(stranger.id, event.id, { completed: true }),
+      isAppError(404),
     );
   });
 });

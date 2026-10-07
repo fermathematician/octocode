@@ -39,3 +39,15 @@
   font-size: 0.75rem;
   color: var(--color-text-muted);
 }
+
+.completedTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-1);
+}

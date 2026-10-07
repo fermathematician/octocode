@@ -213,6 +213,8 @@ model CalendarEvent {
   date      DateTime
   startTime String
   notes     String            @default("")
+  /// Done flag for `TASK` events; local-only (never synced to Google).
+  completed Boolean           @default(false)
   source    CalendarEventSource @default(LOCAL)
   externalId String?
   externalUpdatedAt DateTime?

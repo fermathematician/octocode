@@ -2,6 +2,7 @@ import { CalendarEventType } from "../../../generated/prisma/client.js";
 import {
   ValidationError,
   asObject,
+  optionalBoolean,
   optionalString,
   requireEnum,
   requireIsoDate,
@@ -34,6 +35,7 @@ export interface UpdateCalendarEventInput {
   date?: string;
   startTime?: string;
   notes?: string;
+  completed?: boolean;
 }
 
 export interface ListCalendarEventsQuery {
@@ -80,6 +82,11 @@ export function parseUpdateCalendarEventBody(
 
   if (record.notes !== undefined) {
     input.notes = optionalString(record, "notes") ?? "";
+  }
+
+  const completed = optionalBoolean(record, "completed");
+  if (completed !== undefined) {
+    input.completed = completed;
   }
 
   if (Object.keys(input).length === 0) {

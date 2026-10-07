@@ -158,6 +158,7 @@ export class InMemoryStore {
       date: now,
       startTime: "09:00",
       notes: "",
+      completed: false,
       source: CalendarEventSource.LOCAL,
       externalId: null,
       externalUpdatedAt: null,
@@ -837,6 +838,7 @@ export class InMemoryCalendarEventRepository
       date: data.date,
       startTime: data.startTime,
       notes: "",
+      completed: false,
       source: CalendarEventSource.LOCAL,
       externalId: null,
       externalUpdatedAt: null,
@@ -874,6 +876,7 @@ export class InMemoryCalendarEventRepository
       date: data.date,
       startTime: data.startTime,
       notes: data.notes,
+      completed: false,
       source: CalendarEventSource.GOOGLE,
       externalId,
       externalUpdatedAt: data.externalUpdatedAt,
@@ -919,6 +922,7 @@ export class InMemoryCalendarEventRepository
     if (data.date !== undefined) event.date = data.date;
     if (data.startTime !== undefined) event.startTime = data.startTime;
     if (data.notes !== undefined) event.notes = data.notes;
+    if (data.completed !== undefined) event.completed = data.completed;
     event.updatedAt = new Date();
     return event;
   }

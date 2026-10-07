@@ -52,6 +52,23 @@ export function optionalString(
   return value;
 }
 
+export function optionalBoolean(
+  record: Record<string, unknown>,
+  field: string,
+): boolean | undefined {
+  const value = record[field];
+
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (typeof value !== "boolean") {
+    throw new ValidationError(`${field} must be a boolean.`);
+  }
+
+  return value;
+}
+
 export function requireStringArray(
   record: Record<string, unknown>,
   field: string,

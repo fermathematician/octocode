@@ -1,33 +1,41 @@
 import { useState, type FormEvent } from "react";
-import { Button } from "../../../components/shared/Button/Button";
-import { Select } from "../../../components/shared/Select/Select";
-import { TextInput } from "../../../components/shared/TextInput/TextInput";
-import { CALENDAR_EVENT_TYPE_LABELS } from "../../../domain/calendar";
+import type { CreateCalendarEventInput } from "../../api/calendar-events";
+import { CALENDAR_EVENT_TYPE_LABELS } from "../../domain/calendar";
 import {
   CALENDAR_EVENT_TYPES,
+  type CalendarEvent,
   type CalendarEventType,
-} from "../../../domain/types";
-import type { CreateCalendarEventInput } from "../../../api/calendar-events";
+} from "../../domain/types";
+import { Button } from "../shared/Button/Button";
+import { Select } from "../shared/Select/Select";
+import { TextInput } from "../shared/TextInput/TextInput";
 import {
   isCalendarEventType,
   validateCalendarEvent,
   type CalendarEventFormErrors,
-} from "../validation/calendar-event.schema";
+} from "./calendar-event.schema";
 import styles from "./CalendarEventForm.module.css";
 
 interface CalendarEventFormProps {
   defaultDate: string;
   onSubmit: (input: CreateCalendarEventInput) => Promise<void>;
+  initialEvent?: CalendarEvent;
+  onCancel?: () => void;
 }
 
 export function CalendarEventForm({
   defaultDate,
   onSubmit,
+  initialEvent,
+  onCancel,
 }: CalendarEventFormProps) {
-  const [type, setType] = useState<CalendarEventType>("task");
-  const [title, setTitle] = useState("");
-  const [date, setDate] = useState(defaultDate);
-  const [startTime, setStartTime] = useState("09:00");
+  const isEditing = initialEvent !== undefined;
+  const [type, setType] = useState<CalendarEventType>(
+    initialEvent?.type ?? "task",
+  );
+  const [title, setTitle] = useState(initialEvent?.title ?? "");
+  const [date, setDate] = useState(initialEvent?.date ?? defaultDate);
+  const [startTime, setStartTime] = useState(initialEvent?.startTime ?? "09:00");
   const [errors, setErrors] = useState<CalendarEventFormErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,9 +61,15 @@ export function CalendarEventForm({
 
     try {
       await onSubmit({ type, title: title.trim(), date, startTime });
-      setTitle("");
+      if (!isEditing) {
+        setTitle("");
+      }
     } catch {
-      setFormError("Unable to add the event. Please try again.");
+      setFormError(
+        isEditing
+          ? "Unable to save the event. Please try again."
+          : "Unable to add the event. Please try again.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -113,8 +127,19 @@ export function CalendarEventForm({
       ) : null}
 
       <div className={styles.actions}>
+        {onCancel ? (
+          <Button variant="ghost" onClick={onCancel} disabled={isSubmitting}>
+            Cancel
+          </Button>
+        ) : null}
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Adding…" : "Add event"}
+          {isSubmitting
+            ? isEditing
+              ? "Saving…"
+              : "Adding…"
+            : isEditing
+              ? "Save changes"
+              : "Add event"}
         </Button>
       </div>
     </form>

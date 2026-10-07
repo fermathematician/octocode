@@ -97,6 +97,7 @@ describe("toGoogleEventInput", () => {
         date: now,
         startTime: "09:30",
         notes: "hi",
+        completed: false,
         source: CalendarEventSource.LOCAL,
         externalId: null,
         externalUpdatedAt: null,
