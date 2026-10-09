@@ -234,21 +234,41 @@ export class FetchGithubClient implements GithubClient {
     };
   }
 
+  /**
+   * Lists repositories owned by organizations the user belongs to. The
+   * `organization_member` affiliation excludes personal and externally
+   * collaborated repos; pagination prevents orgs from being dropped past the
+   * first 100 results.
+   */
   async listRepositories(
     accessToken: string,
   ): Promise<GithubRepositorySummary[]> {
-    const repositories = await this.request<GithubApiRepository[]>(
-      "/user/repos?per_page=100&sort=updated",
-      accessToken,
-    );
+    const perPage = 100;
+    const maxPages = 10;
+    const repositories: GithubRepositorySummary[] = [];
 
-    return repositories.map((repository) => ({
-      repoId: String(repository.id),
-      owner: repository.owner.login,
-      name: repository.name,
-      defaultBranch: repository.default_branch,
-      isPrivate: repository.private,
-    }));
+    for (let page = 1; page <= maxPages; page += 1) {
+      const pageRepositories = await this.request<GithubApiRepository[]>(
+        `/user/repos?affiliation=organization_member&type=all&per_page=${perPage}&sort=updated&page=${page}`,
+        accessToken,
+      );
+
+      repositories.push(
+        ...pageRepositories.map((repository) => ({
+          repoId: String(repository.id),
+          owner: repository.owner.login,
+          name: repository.name,
+          defaultBranch: repository.default_branch,
+          isPrivate: repository.private,
+        })),
+      );
+
+      if (pageRepositories.length < perPage) {
+        break;
+      }
+    }
+
+    return repositories;
   }
 
   async listBranches(

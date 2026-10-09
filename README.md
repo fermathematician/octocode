@@ -627,7 +627,7 @@ All routes except `/health` and the two OAuth endpoints require a valid session 
 | GET | `/calendar/google/status` | required | `{ connected, lastSyncedAt }` |
 | DELETE | `/calendar/google` | required | Disconnect Google Calendar → 204 |
 | POST | `/calendar/google/sync` | required | Pull + push and return a sync summary |
-| GET | `/github/repositories` | required | List the actor's GitHub repositories |
+| GET | `/github/repositories` | required | List the actor's organization repositories (personal repos excluded; paginated) |
 | POST | `/github/repositories` | required | Link a repo to a project |
 | GET | `/github/projects/:projectId/branches` | required | List branches of the linked repository; merges GitHub + local (`{ name, source }`) |
 | POST | `/github/branches/local` | required | Record local branches `{ owner, name, names }` reported by the git hook |
@@ -1216,14 +1216,17 @@ These are deliberately documented so future work does not rediscover them.
   `[repositoryId, branch, sha]`, so the same commit on two branches never leaks between cards. A
   story whose branch *is* the default branch stores all of its commits; a branch that was never
   pushed or was deleted stores none.
-- **Repos and commits fetch only the first page** (`per_page=100`); no pagination. **Branches are
-  paginated** (up to 10 pages / 1000 branches) and the branch picker shows up to 100 matches.
+- **Commits fetch only the first page** (`per_page=100`); no pagination. **Repos and branches are
+  paginated** (up to 10 pages / 1000 each); the branch picker shows up to 100 matches.
 - **Branch access needs the right token permissions**: a classic PAT needs the `repo` scope; a
   fine-grained PAT needs **Contents (read)** + **Metadata (read)**. Without it GitHub returns
   403/404, which is now surfaced in the branch picker (`hint`) instead of an empty list. A `409`
   means the repository has no branches yet (empty repo).
 - **`repo` scope** grants broad access to the user's repositories.
-- **GitHub repositories listing** uses `/user/repos` (repos the user can access), sorted by update.
+- **GitHub repositories listing** uses `/user/repos?affiliation=organization_member&type=all` —
+  only repos owned by organizations the user belongs to (personal and externally collaborated repos
+  are excluded) — paginated (up to 10 pages / 1000) and sorted by update. Orgs that enforce SAML SSO
+  or restrict third-party OAuth Apps can still be hidden by GitHub.
 - **Author attribution** falls back to the commit author name when GitHub does not map a user.
 - **Renaming a branch on GitHub** does not update the story's stored branch automatically.
 - **The branch picker merges GitHub and local branches** — `GET /github/projects/:id/branches`
@@ -1327,7 +1330,7 @@ phased plan. **Phases 1–3 are implemented** (see §11); Phases 4–5 are outst
 | --- | --- |
 | GitHub App + webhooks + automatic commit sync | ❌ Phase 4 |
 | Google Calendar two-way sync | ✅ Phase 4 (pull + push, sync token, scheduled sync) |
-| Repo/commit pagination (GitHub API) | ❌ Phase 4 |
+| Commit pagination (GitHub API) | ❌ Phase 4 (repos are paginated; commits still fetch page 1 only) |
 
 #### D. Operations / quality
 
