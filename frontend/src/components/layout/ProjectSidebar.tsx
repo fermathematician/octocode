@@ -9,6 +9,7 @@ interface ProjectSidebarProps {
   activeProjectId: string | null;
   onSelectScreen: (viewId: GeneralViewId) => void;
   onSelectProject: (projectId: string | null) => void;
+  onDeleteProject: (project: Project) => void;
   onLogout: () => void;
 }
 
@@ -19,6 +20,7 @@ export function ProjectSidebar({
   activeProjectId,
   onSelectScreen,
   onSelectProject,
+  onDeleteProject,
   onLogout,
 }: ProjectSidebarProps) {
   return (
@@ -80,7 +82,7 @@ export function ProjectSidebar({
               activeScreen === "project" && activeProjectId === project.id;
 
             return (
-              <li key={project.id}>
+              <li key={project.id} className={styles.projectRow}>
                 <button
                   type="button"
                   className={`${styles.item} ${
@@ -100,6 +102,15 @@ export function ProjectSidebar({
                       {project.githubAccount}/{project.repository}
                     </span>
                   </span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.deleteProject}
+                  onClick={() => onDeleteProject(project)}
+                  aria-label={`Delete project ${project.name}`}
+                  title="Delete project"
+                >
+                  ×
                 </button>
               </li>
             );

@@ -22,6 +22,10 @@ export interface GithubRepositorySummary {
   isPrivate: boolean;
 }
 
+export interface GithubOrganizationSummary {
+  login: string;
+}
+
 export interface GithubCommitSummary {
   sha: string;
   message: string;
@@ -47,6 +51,7 @@ export interface GithubClient {
   getAuthorizeUrl(state: string): string;
   exchangeCodeForToken(code: string): Promise<GithubToken>;
   getAuthenticatedUser(accessToken: string): Promise<GithubUser>;
+  listOrganizations(accessToken: string): Promise<GithubOrganizationSummary[]>;
   listRepositories(accessToken: string): Promise<GithubRepositorySummary[]>;
   listBranches(
     accessToken: string,

@@ -6,6 +6,7 @@ import {
 } from "../../src/generated/prisma/client.js";
 import { GetCurrentUserService } from "../../src/modules/auth/services/GetCurrentUserService.js";
 import { UpdateCalendarEventService } from "../../src/modules/calendar/services/UpdateCalendarEventService.js";
+import { DeleteProjectService } from "../../src/modules/projects/services/DeleteProjectService.js";
 import { CreateSprintService } from "../../src/modules/sprints/services/CreateSprintService.js";
 import { CreateStoryService } from "../../src/modules/stories/services/CreateStoryService.js";
 import { DeleteStoryService } from "../../src/modules/stories/services/DeleteStoryService.js";
@@ -260,6 +261,48 @@ describe("DeleteStoryService", () => {
       isAppError(404),
     );
     assert.ok(store.stories.find((item) => item.id === story.id));
+  });
+});
+
+describe("DeleteProjectService", () => {
+  it("deletes a project the actor owns", async () => {
+    const { store, projects } = setup();
+    const user = store.seedUser();
+    const project = store.seedProject(user.id);
+
+    const service = new DeleteProjectService(projects);
+    await service.execute(user.id, project.id);
+
+    assert.equal(
+      store.projects.find((item) => item.id === project.id),
+      undefined,
+    );
+  });
+
+  it("rejects an unknown project", async () => {
+    const { store, projects } = setup();
+    const user = store.seedUser();
+    const service = new DeleteProjectService(projects);
+
+    await assert.rejects(
+      () => service.execute(user.id, "missing"),
+      isAppError(404),
+    );
+  });
+
+  it("rejects a project the actor does not own", async () => {
+    const { store, projects } = setup();
+    const owner = store.seedUser();
+    const stranger = store.seedUser();
+    const project = store.seedProject(owner.id);
+
+    const service = new DeleteProjectService(projects);
+
+    await assert.rejects(
+      () => service.execute(stranger.id, project.id),
+      isAppError(404),
+    );
+    assert.ok(store.projects.find((item) => item.id === project.id));
   });
 });
 

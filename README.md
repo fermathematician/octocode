@@ -412,11 +412,12 @@ frontend/src/
   action.
 - **Graph** (`pages/graph`): burndown chart + sprint header, project filter.
 - **Project** (`pages/project`): tabs `Backlog` (story CRUD/branch/commits) and `Progress`
-  (sprint history). When a project is selected, the header has **Edit project** (name/color) and
-  **Delete project** actions; when "All projects" is selected, an **Add project** button opens a
-  modal that lists your GitHub repositories with a search box. Clicking a story card opens a detail
-  modal with the branch picker, the commit list (with dates), an editor for the story fields, a
-  **Sync commits** button, and a **Delete** action.
+  (sprint history). Each project row in the sidebar has an **×** delete action (confirm first); when a
+  project is selected, the header also has **Edit project** (name/color) and **Delete project**
+  actions. When "All projects" is selected, an **Add project** button opens a modal that lists your
+  GitHub repositories with a search box. Clicking a story card opens a detail modal with the branch
+  picker, the commit list (with dates), an editor for the story fields, a **Sync commits** button,
+  and a **Delete** action.
 
 ### 5.6 Data flow
 
@@ -643,7 +644,7 @@ routes return the updated resource or `204`.
 
 ### 6.7 GitHub authentication flow
 
-Uses a **GitHub OAuth App** (login + repo access). Scopes: `read:user user:email repo`.
+Uses a **GitHub OAuth App** (login + repo access). Scopes: `read:user user:email read:org repo`.
 
 ```text
 Frontend LoginScreen
@@ -1223,10 +1224,14 @@ These are deliberately documented so future work does not rediscover them.
   403/404, which is now surfaced in the branch picker (`hint`) instead of an empty list. A `409`
   means the repository has no branches yet (empty repo).
 - **`repo` scope** grants broad access to the user's repositories.
-- **GitHub repositories listing** uses `/user/repos?affiliation=organization_member&type=all` —
-  only repos owned by organizations the user belongs to (personal and externally collaborated repos
-  are excluded) — paginated (up to 10 pages / 1000) and sorted by update. Orgs that enforce SAML SSO
-  or restrict third-party OAuth Apps can still be hidden by GitHub.
+- **GitHub repositories listing** enumerates the user's organizations (`/user/orgs`) and then each
+  org's repos (`/orgs/{org}/repos?type=all`), paginated (up to 10 pages / 1000 per list), so org
+  repos are surfaced even when `/user/repos` omits them. If `/user/orgs` cannot be read (an existing
+  session whose token predates the `read:org` scope) it falls back to
+  `/user/repos?affiliation=organization_member`, which at least drops personal repos. Orgs that
+  enforce SAML SSO or restrict third-party OAuth Apps still return `403`/`404`; the app now throws an
+  actionable message (including the SSO authorization URL) instead of a generic error. **A scope
+  change requires the user to sign out and back in** so the token gains `read:org`.
 - **Author attribution** falls back to the commit author name when GitHub does not map a user.
 - **Renaming a branch on GitHub** does not update the story's stored branch automatically.
 - **The branch picker merges GitHub and local branches** — `GET /github/projects/:id/branches`

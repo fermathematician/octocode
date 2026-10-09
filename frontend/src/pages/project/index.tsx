@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { deleteProject, updateProject, type UpdateProjectInput } from "../../api/projects";
+import { updateProject, type UpdateProjectInput } from "../../api/projects";
 import { Button } from "../../components/shared/Button/Button";
 import { ProjectEditModal } from "../../components/project/ProjectEditModal";
 import type { Project } from "../../domain/types";
@@ -16,7 +16,7 @@ interface ProjectPageProps {
   onSelectProject: (projectId: string | null) => void;
   onProjectCreated: (project: Project) => void;
   onProjectUpdated: (project: Project) => void;
-  onProjectDeleted: (projectId: string) => void;
+  onDeleteProject: (project: Project) => void;
 }
 
 const TABS: { id: ProjectTabId; label: string }[] = [
@@ -30,7 +30,7 @@ export function ProjectPage({
   onSelectProject,
   onProjectCreated,
   onProjectUpdated,
-  onProjectDeleted,
+  onDeleteProject,
 }: ProjectPageProps) {
   const [tab, setTab] = useState<ProjectTabId>("backlog");
   const [isAdding, setIsAdding] = useState(false);
@@ -49,27 +49,6 @@ export function ProjectPage({
     const updated = await updateProject(currentProject.id, input);
     onProjectUpdated(updated);
     setIsEditing(false);
-  }
-
-  async function handleDelete() {
-    if (!currentProject) {
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Delete "${currentProject.name}"? Its stories, commits and repository link are removed.`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      await deleteProject(currentProject.id);
-      onProjectDeleted(currentProject.id);
-    } catch {
-      window.alert("Unable to delete the project.");
-    }
   }
 
   return (
@@ -103,7 +82,9 @@ export function ProjectPage({
             <Button
               variant="danger"
               onClick={() => {
-                void handleDelete();
+                if (currentProject) {
+                  onDeleteProject(currentProject);
+                }
               }}
             >
               Delete project

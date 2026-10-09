@@ -4,6 +4,7 @@ import type {
   GithubBranchSummary,
   GithubClient,
   GithubCommitSummary,
+  GithubOrganizationSummary,
   GithubRepositorySummary,
   GithubToken,
   GithubUser,
@@ -35,6 +36,22 @@ interface GithubApiRepository {
   default_branch: string;
   private: boolean;
   owner: { login: string };
+}
+
+interface GithubApiOrganization {
+  login: string;
+}
+
+function toRepositorySummary(
+  repository: GithubApiRepository,
+): GithubRepositorySummary {
+  return {
+    repoId: String(repository.id),
+    owner: repository.owner.login,
+    name: repository.name,
+    defaultBranch: repository.default_branch,
+    isPrivate: repository.private,
+  };
 }
 
 interface GithubApiCommit {
@@ -77,7 +94,7 @@ export class FetchGithubClient implements GithubClient {
     const params = new URLSearchParams({
       client_id: this.options.clientId,
       redirect_uri: this.options.callbackUrl,
-      scope: "read:user user:email repo",
+      scope: "read:user user:email read:org repo",
       state,
     });
 
@@ -166,6 +183,18 @@ export class FetchGithubClient implements GithubClient {
 
   private async parse<T>(response: Response): Promise<T> {
     if (!response.ok) {
+      const sso = response.headers.get("x-github-sso");
+
+      if (sso) {
+        const url = /url=([^;]+)/.exec(sso)?.[1]?.trim();
+        throw new AppError(
+          url
+            ? `GitHub requires SAML SSO authorization for this organization. Authorize the token here: ${url}`
+            : "GitHub requires SAML SSO authorization for this organization. Authorize the app's token for the organization on GitHub.",
+          403,
+        );
+      }
+
       if (response.status === 401) {
         throw new AppError(
           "GitHub rejected the access token. Check that it is valid and not expired (classic tokens need the `repo` and `read:user` scopes).",
@@ -234,18 +263,119 @@ export class FetchGithubClient implements GithubClient {
     };
   }
 
+  async listOrganizations(
+    accessToken: string,
+  ): Promise<GithubOrganizationSummary[]> {
+    const organizations: GithubOrganizationSummary[] = [];
+    const perPage = 100;
+    const maxPages = 10;
+
+    for (let page = 1; page <= maxPages; page += 1) {
+      const pageOrganizations = await this.request<GithubApiOrganization[]>(
+        `/user/orgs?per_page=${perPage}&page=${page}`,
+        accessToken,
+      );
+
+      organizations.push(
+        ...pageOrganizations.map((organization) => ({
+          login: organization.login,
+        })),
+      );
+
+      if (pageOrganizations.length < perPage) {
+        break;
+      }
+    }
+
+    return organizations;
+  }
+
   /**
-   * Lists repositories owned by organizations the user belongs to. The
-   * `organization_member` affiliation excludes personal and externally
-   * collaborated repos; pagination prevents orgs from being dropped past the
-   * first 100 results.
+   * Lists repositories owned by the user's organizations. Enumerating orgs
+   * explicitly (`/user/orgs` → `/orgs/{org}/repos`) surfaces enterprise orgs
+   * that `/user/repos` silently omits when SAML SSO or OAuth App restrictions
+   * apply. Falls back to the `organization_member` affiliation filter when the
+   * token cannot list organizations (e.g. a session predating `read:org`).
    */
   async listRepositories(
     accessToken: string,
   ): Promise<GithubRepositorySummary[]> {
+    let organizations: GithubOrganizationSummary[];
+
+    try {
+      organizations = await this.listOrganizations(accessToken);
+    } catch {
+      return this.listAffiliatedRepositories(accessToken);
+    }
+
+    if (organizations.length === 0) {
+      return this.listAffiliatedRepositories(accessToken);
+    }
+
+    const repositories: GithubRepositorySummary[] = [];
+    let blockedOrganizations = 0;
+
+    for (const organization of organizations) {
+      try {
+        repositories.push(
+          ...(await this.listOrganizationRepositories(
+            accessToken,
+            organization.login,
+          )),
+        );
+      } catch (error) {
+        if (
+          error instanceof AppError &&
+          (error.statusCode === 403 || error.statusCode === 404)
+        ) {
+          blockedOrganizations += 1;
+          continue;
+        }
+
+        throw error;
+      }
+    }
+
+    if (repositories.length === 0 && blockedOrganizations > 0) {
+      throw new AppError(
+        "GitHub did not return repositories for your organizations. The OAuth App may need approval from an organization owner, or your token may need SAML SSO authorization. Open https://github.com/settings/connections/applications and authorize the app.",
+        403,
+      );
+    }
+
+    return repositories;
+  }
+
+  private async listOrganizationRepositories(
+    accessToken: string,
+    organization: string,
+  ): Promise<GithubRepositorySummary[]> {
+    const repositories: GithubRepositorySummary[] = [];
     const perPage = 100;
     const maxPages = 10;
+
+    for (let page = 1; page <= maxPages; page += 1) {
+      const pageRepositories = await this.request<GithubApiRepository[]>(
+        `/orgs/${encodeURIComponent(organization)}/repos?type=all&per_page=${perPage}&sort=updated&page=${page}`,
+        accessToken,
+      );
+
+      repositories.push(...pageRepositories.map(toRepositorySummary));
+
+      if (pageRepositories.length < perPage) {
+        break;
+      }
+    }
+
+    return repositories;
+  }
+
+  private async listAffiliatedRepositories(
+    accessToken: string,
+  ): Promise<GithubRepositorySummary[]> {
     const repositories: GithubRepositorySummary[] = [];
+    const perPage = 100;
+    const maxPages = 10;
 
     for (let page = 1; page <= maxPages; page += 1) {
       const pageRepositories = await this.request<GithubApiRepository[]>(
@@ -253,15 +383,7 @@ export class FetchGithubClient implements GithubClient {
         accessToken,
       );
 
-      repositories.push(
-        ...pageRepositories.map((repository) => ({
-          repoId: String(repository.id),
-          owner: repository.owner.login,
-          name: repository.name,
-          defaultBranch: repository.default_branch,
-          isPrivate: repository.private,
-        })),
-      );
+      repositories.push(...pageRepositories.map(toRepositorySummary));
 
       if (pageRepositories.length < perPage) {
         break;

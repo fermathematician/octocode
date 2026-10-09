@@ -11,6 +11,7 @@ interface AppShellProps {
   activeProjectId: string | null;
   onSelectScreen: (viewId: GeneralViewId) => void;
   onSelectProject: (projectId: string | null) => void;
+  onDeleteProject: (project: Project) => void;
   onLogout: () => void;
   children: ReactNode;
 }
@@ -22,6 +23,7 @@ export function AppShell({
   activeProjectId,
   onSelectScreen,
   onSelectProject,
+  onDeleteProject,
   onLogout,
   children,
 }: AppShellProps) {
@@ -34,6 +36,7 @@ export function AppShell({
         activeProjectId={activeProjectId}
         onSelectScreen={onSelectScreen}
         onSelectProject={onSelectProject}
+        onDeleteProject={onDeleteProject}
         onLogout={onLogout}
       />
       <div className={styles.main}>

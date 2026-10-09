@@ -76,6 +76,35 @@
   color: var(--color-primary-strong);
 }
 
+.projectRow {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.projectRow .item {
+  flex: 1;
+  min-width: 0;
+}
+
+.deleteProject {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  padding: 0 8px;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.deleteProject:hover {
+  background-color: var(--color-surface-muted);
+  color: var(--color-critical);
+}
+
 .dot {
   width: 10px;
   height: 10px;

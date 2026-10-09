@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getProjects } from "./api/projects";
+import { deleteProject, getProjects } from "./api/projects";
 import { LoginScreen } from "./auth/LoginScreen";
 import { useCurrentUser } from "./auth/useCurrentUser";
 import { AppShell } from "./components/layout/AppShell";
@@ -81,6 +81,23 @@ export function App() {
     setScreen("project");
   }
 
+  async function handleDeleteProject(project: Project) {
+    const confirmed = window.confirm(
+      `Delete "${project.name}"? Its stories, commits and repository link are removed.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteProject(project.id);
+      handleProjectDeleted(project.id);
+    } catch {
+      window.alert("Unable to delete the project.");
+    }
+  }
+
   if (userLoading) {
     return (
       <div className={styles.loading}>
@@ -123,7 +140,7 @@ export function App() {
             onSelectProject={selectProject}
             onProjectCreated={handleProjectCreated}
             onProjectUpdated={handleProjectUpdated}
-            onProjectDeleted={handleProjectDeleted}
+            onDeleteProject={handleDeleteProject}
           />
         );
     }
@@ -137,6 +154,7 @@ export function App() {
       activeProjectId={activeProjectId}
       onSelectScreen={selectScreen}
       onSelectProject={selectProject}
+      onDeleteProject={handleDeleteProject}
       onLogout={logout}
     >
       {renderScreen()}

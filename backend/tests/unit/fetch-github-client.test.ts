@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { FetchGithubClient } from "../../src/infrastructure/github/FetchGithubClient.js";
+import { AppError } from "../../src/shared/appError.js";
 
 interface StubRepository {
   id: number;
@@ -20,79 +21,128 @@ function repository(id: number, owner = "acme"): StubRepository {
   };
 }
 
-function jsonResponse(body: unknown): Response {
+function jsonResponse(
+  body: unknown,
+  status = 200,
+  headers: Record<string, string> = {},
+): Response {
   return {
-    ok: true,
-    status: 200,
+    ok: status >= 200 && status < 300,
+    status,
+    headers: {
+      get: (name: string) => headers[name.toLowerCase()] ?? null,
+    },
     json: async () => body,
   } as unknown as Response;
 }
 
+function makeClient(): FetchGithubClient {
+  return new FetchGithubClient({
+    clientId: "id",
+    clientSecret: "secret",
+    callbackUrl: "http://localhost/auth/callback",
+  });
+}
+
+async function withStubbedFetch(
+  handler: (url: string) => Response,
+  run: (urls: string[]) => Promise<void>,
+): Promise<void> {
+  const originalFetch = globalThis.fetch;
+  const urls: string[] = [];
+
+  globalThis.fetch = (async (input: unknown) => {
+    const url = String(input);
+    urls.push(url);
+    return handler(url);
+  }) as unknown as typeof fetch;
+
+  try {
+    await run(urls);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
 describe("FetchGithubClient.listRepositories", () => {
-  it("requests only organization repos and follows pages", async () => {
-    const urls: string[] = [];
+  it("lists organization repos per org and follows pages", async () => {
     const perPage = 100;
     const pages: Record<number, StubRepository[]> = {
       1: Array.from({ length: perPage }, (_, index) => repository(index + 1)),
       2: [repository(perPage + 1, "beta")],
     };
-    const originalFetch = globalThis.fetch;
 
-    globalThis.fetch = (async (input: unknown) => {
-      const url = String(input);
-      urls.push(url);
-      const page = Number(new URL(url).searchParams.get("page"));
-      return jsonResponse(pages[page] ?? []);
-    }) as unknown as typeof fetch;
+    await withStubbedFetch(
+      (url) => {
+        if (url.includes("/user/orgs")) {
+          return jsonResponse([{ login: "acme" }]);
+        }
 
-    try {
-      const client = new FetchGithubClient({
-        clientId: "id",
-        clientSecret: "secret",
-        callbackUrl: "http://localhost/auth/callback",
-      });
+        if (url.includes("/orgs/acme/repos")) {
+          const page = Number(new URL(url).searchParams.get("page"));
+          return jsonResponse(pages[page] ?? []);
+        }
 
-      const repositories = await client.listRepositories("token");
+        return jsonResponse([]);
+      },
+      async (urls) => {
+        const repositories = await makeClient().listRepositories("token");
 
-      assert.equal(repositories.length, perPage + 1);
-      assert.equal(repositories[0]?.owner, "acme");
-      assert.equal(repositories[perPage]?.owner, "beta");
-      assert.equal(urls.length, 2);
-
-      const firstUrl = urls[0];
-      const secondUrl = urls[1];
-      assert.ok(firstUrl);
-      assert.ok(secondUrl);
-      assert.match(firstUrl, /affiliation=organization_member/);
-      assert.match(firstUrl, /page=1/);
-      assert.match(secondUrl, /page=2/);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+        assert.equal(repositories.length, perPage + 1);
+        assert.equal(repositories[0]?.owner, "acme");
+        assert.equal(repositories[perPage]?.owner, "beta");
+        assert.ok(urls.some((url) => url.includes("/orgs/acme/repos")));
+        assert.ok(!urls.some((url) => url.includes("/user/repos")));
+      },
+    );
   });
 
-  it("stops after a single short page", async () => {
-    const urls: string[] = [];
-    const originalFetch = globalThis.fetch;
+  it("falls back to the affiliation filter when orgs cannot be listed", async () => {
+    await withStubbedFetch(
+      (url) => {
+        if (url.includes("/user/orgs")) {
+          return jsonResponse({ message: "Not Found" }, 404);
+        }
 
-    globalThis.fetch = (async (input: unknown) => {
-      urls.push(String(input));
-      return jsonResponse([repository(1)]);
-    }) as unknown as typeof fetch;
+        if (url.includes("/user/repos")) {
+          return jsonResponse([repository(1)]);
+        }
 
-    try {
-      const client = new FetchGithubClient({
-        clientId: "id",
-        clientSecret: "secret",
-        callbackUrl: "http://localhost/auth/callback",
-      });
+        return jsonResponse([]);
+      },
+      async (urls) => {
+        const repositories = await makeClient().listRepositories("token");
 
-      const repositories = await client.listRepositories("token");
+        assert.equal(repositories.length, 1);
+        assert.ok(
+          urls.some((url) => url.includes("affiliation=organization_member")),
+        );
+      },
+    );
+  });
 
-      assert.equal(repositories.length, 1);
-      assert.equal(urls.length, 1);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+  it("throws an actionable error when every organization is blocked", async () => {
+    await withStubbedFetch(
+      (url) => {
+        if (url.includes("/user/orgs")) {
+          return jsonResponse([{ login: "acme" }]);
+        }
+
+        return jsonResponse(
+          { message: "Resource protected by organization SAML enforcement." },
+          403,
+          { "x-github-sso": "required; url=https://github.com/orgs/acme/sso" },
+        );
+      },
+      async () => {
+        await assert.rejects(
+          () => makeClient().listRepositories("token"),
+          (error: unknown) =>
+            error instanceof AppError &&
+            error.statusCode === 403 &&
+            /organizations/.test(error.message),
+        );
+      },
+    );
   });
 });
