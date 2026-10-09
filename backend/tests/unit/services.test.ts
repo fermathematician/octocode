@@ -8,6 +8,7 @@ import { GetCurrentUserService } from "../../src/modules/auth/services/GetCurren
 import { UpdateCalendarEventService } from "../../src/modules/calendar/services/UpdateCalendarEventService.js";
 import { CreateSprintService } from "../../src/modules/sprints/services/CreateSprintService.js";
 import { CreateStoryService } from "../../src/modules/stories/services/CreateStoryService.js";
+import { DeleteStoryService } from "../../src/modules/stories/services/DeleteStoryService.js";
 import { MoveStoryToSprintService } from "../../src/modules/stories/services/MoveStoryToSprintService.js";
 import { UpdateStoryStatusService } from "../../src/modules/stories/services/UpdateStoryStatusService.js";
 import { AppError } from "../../src/shared/appError.js";
@@ -218,6 +219,47 @@ describe("UpdateStoryStatusService", () => {
       () => service.execute(stranger.id, story.id, StoryStatus.CODE),
       isAppError(404),
     );
+  });
+});
+
+describe("DeleteStoryService", () => {
+  it("deletes a story the actor owns", async () => {
+    const { store, stories } = setup();
+    const user = store.seedUser();
+    const project = store.seedProject(user.id);
+    const story = store.seedStory(project.id);
+
+    const service = new DeleteStoryService(stories);
+    await service.execute(user.id, story.id);
+
+    assert.equal(store.stories.find((item) => item.id === story.id), undefined);
+  });
+
+  it("rejects an unknown story", async () => {
+    const { store, stories } = setup();
+    const user = store.seedUser();
+    const service = new DeleteStoryService(stories);
+
+    await assert.rejects(
+      () => service.execute(user.id, "missing"),
+      isAppError(404),
+    );
+  });
+
+  it("rejects a story the actor does not own", async () => {
+    const { store, stories } = setup();
+    const owner = store.seedUser();
+    const stranger = store.seedUser();
+    const project = store.seedProject(owner.id);
+    const story = store.seedStory(project.id);
+
+    const service = new DeleteStoryService(stories);
+
+    await assert.rejects(
+      () => service.execute(stranger.id, story.id),
+      isAppError(404),
+    );
+    assert.ok(store.stories.find((item) => item.id === story.id));
   });
 });
 

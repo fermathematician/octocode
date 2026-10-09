@@ -7,7 +7,7 @@ interface TextInputProps {
   onChange: (value: string) => void;
   placeholder?: string;
   error?: string;
-  type?: "text" | "date" | "time";
+  type?: "text" | "date" | "time" | "color";
 }
 
 export function TextInput({

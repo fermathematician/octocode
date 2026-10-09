@@ -1,6 +1,7 @@
 import { requireAuth } from "../http/middleware/ensureAuthenticated.js";
 import { AssignStoryBranchController } from "../modules/stories/controllers/AssignStoryBranchController.js";
 import { CreateStoryController } from "../modules/stories/controllers/CreateStoryController.js";
+import { DeleteStoryController } from "../modules/stories/controllers/DeleteStoryController.js";
 import { ListStoriesController } from "../modules/stories/controllers/ListStoriesController.js";
 import { MoveStoryToSprintController } from "../modules/stories/controllers/MoveStoryToSprintController.js";
 import { UpdateStoryController } from "../modules/stories/controllers/UpdateStoryController.js";
@@ -8,6 +9,7 @@ import { UpdateStoryStatusController } from "../modules/stories/controllers/Upda
 import { createStoriesRouter } from "../modules/stories/routes/stories.routes.js";
 import { AssignStoryBranchService } from "../modules/stories/services/AssignStoryBranchService.js";
 import { CreateStoryService } from "../modules/stories/services/CreateStoryService.js";
+import { DeleteStoryService } from "../modules/stories/services/DeleteStoryService.js";
 import { ListStoriesService } from "../modules/stories/services/ListStoriesService.js";
 import { MoveStoryToSprintService } from "../modules/stories/services/MoveStoryToSprintService.js";
 import { UpdateStoryService } from "../modules/stories/services/UpdateStoryService.js";
@@ -45,7 +47,11 @@ const moveToSprint = new MoveStoryToSprintController(
   ),
 );
 
+const remove = new DeleteStoryController(
+  new DeleteStoryService(shared.storyRepository),
+);
+
 export const storiesRouter = createStoriesRouter(
-  { list, create, update, updateStatus, assignBranch, moveToSprint },
+  { list, create, update, updateStatus, assignBranch, moveToSprint, remove },
   requireAuth,
 );

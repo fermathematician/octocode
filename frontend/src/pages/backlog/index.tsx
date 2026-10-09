@@ -25,6 +25,7 @@ export function BacklogPage({
 }: BacklogPageProps) {
   const {
     stories,
+    sprints,
     loading,
     error,
     priorityFilter,
@@ -32,6 +33,8 @@ export function BacklogPage({
     assignBranch,
     addStory,
     updateStory,
+    moveToSprint,
+    removeStory,
     syncCommits,
     reload,
   } = useBacklog(projectId);
@@ -93,6 +96,7 @@ export function BacklogPage({
           project={projects.find(
             (project) => project.id === selectedStory.projectId,
           )}
+          sprints={sprints}
           onClose={() => setSelectedStoryId(null)}
           onAssignBranch={async (branch) => {
             await assignBranch(selectedStory.id, branch);
@@ -102,6 +106,13 @@ export function BacklogPage({
           }}
           onUpdateStory={async (input) => {
             await updateStory(selectedStory.id, input);
+          }}
+          onMoveToSprint={async (sprintId) => {
+            await moveToSprint(selectedStory.id, sprintId);
+          }}
+          onDelete={async () => {
+            await removeStory(selectedStory.id);
+            setSelectedStoryId(null);
           }}
         />
       ) : null}

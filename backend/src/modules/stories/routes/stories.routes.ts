@@ -2,6 +2,7 @@ import { Router, type RequestHandler } from "express";
 import { validate } from "../../../http/middleware/validate.js";
 import type { AssignStoryBranchController } from "../controllers/AssignStoryBranchController.js";
 import type { CreateStoryController } from "../controllers/CreateStoryController.js";
+import type { DeleteStoryController } from "../controllers/DeleteStoryController.js";
 import type { ListStoriesController } from "../controllers/ListStoriesController.js";
 import type { MoveStoryToSprintController } from "../controllers/MoveStoryToSprintController.js";
 import type { UpdateStoryController } from "../controllers/UpdateStoryController.js";
@@ -23,6 +24,7 @@ export interface StoryControllers {
   updateStatus: UpdateStoryStatusController;
   assignBranch: AssignStoryBranchController;
   moveToSprint: MoveStoryToSprintController;
+  remove: DeleteStoryController;
 }
 
 export function createStoriesRouter(
@@ -73,6 +75,11 @@ export function createStoriesRouter(
       body: parseUpdateStoryBody,
     }),
     controllers.update.handle,
+  );
+  router.delete(
+    "/:storyId",
+    validate({ params: parseStoryParams }),
+    controllers.remove.handle,
   );
 
   return router;

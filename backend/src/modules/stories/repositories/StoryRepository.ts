@@ -55,6 +55,7 @@ export interface StoryRepository {
   ): Promise<StoryWithCommits>;
   updateBranch(id: string, branch: string): Promise<StoryWithCommits>;
   moveToSprint(id: string, sprintId: string | null): Promise<StoryWithCommits>;
+  delete(id: string, ownerId: string): Promise<boolean>;
   findBranchesByProject(projectId: string): Promise<string[]>;
   findIdsByProject(projectId: string): Promise<string[]>;
 }
@@ -134,6 +135,14 @@ export class PrismaStoryRepository implements StoryRepository {
       data: { sprintId },
       include,
     });
+  }
+
+  async delete(id: string, ownerId: string): Promise<boolean> {
+    const result = await this.prisma.story.deleteMany({
+      where: { id, project: { ownerId } },
+    });
+
+    return result.count > 0;
   }
 
   async findBranchesByProject(projectId: string): Promise<string[]> {

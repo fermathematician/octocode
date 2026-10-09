@@ -5,22 +5,25 @@ import { Badge, type BadgeTone } from "../../../components/shared/Badge/Badge";
 import { Button } from "../../../components/shared/Button/Button";
 import { Modal } from "../../../components/shared/Modal/Modal";
 import { CommitList } from "../../../components/stories/CommitList";
-import { StoryPointsEditor } from "../../../components/stories/StoryPointsEditor";
+import { StoryEditForm } from "../../../components/stories/StoryEditForm";
 import {
   STORY_PRIORITY_LABELS,
   STORY_STATUS_LABELS,
 } from "../../../domain/story";
-import type { Project, Story } from "../../../domain/types";
+import type { Project, Sprint, Story } from "../../../domain/types";
 import { BranchForm } from "./BranchForm";
 import styles from "./StoryDetailModal.module.css";
 
 interface StoryDetailModalProps {
   story: Story;
   project: Project | undefined;
+  sprints: Sprint[];
   onClose: () => void;
   onAssignBranch: (branch: string) => Promise<void>;
   onSyncCommits: () => Promise<void>;
   onUpdateStory: (input: UpdateStoryInput) => Promise<void>;
+  onMoveToSprint: (sprintId: string | null) => Promise<void>;
+  onDelete: () => Promise<void>;
 }
 
 const PRIORITY_TONES: Record<Story["priority"], BadgeTone> = {
@@ -33,13 +36,18 @@ const PRIORITY_TONES: Record<Story["priority"], BadgeTone> = {
 export function StoryDetailModal({
   story,
   project,
+  sprints,
   onClose,
   onAssignBranch,
   onSyncCommits,
   onUpdateStory,
+  onMoveToSprint,
+  onDelete,
 }: StoryDetailModalProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   async function handleSync() {
     setIsSyncing(true);
@@ -56,6 +64,30 @@ export function StoryDetailModal({
       );
     } finally {
       setIsSyncing(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (
+      !window.confirm(
+        `Delete "${story.title}"? Its commits stay in the repository.`,
+      )
+    ) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      await onDelete();
+    } catch (caught) {
+      setDeleteError(
+        caught instanceof ApiError
+          ? caught.message
+          : "Could not delete the story.",
+      );
+      setIsDeleting(false);
     }
   }
 
@@ -92,11 +124,13 @@ export function StoryDetailModal({
         </dl>
 
         <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>Story points</h3>
-          <StoryPointsEditor
+          <h3 className={styles.sectionTitle}>Edit story</h3>
+          <StoryEditForm
             key={story.id}
-            storyPoints={story.storyPoints}
-            onSave={(storyPoints) => onUpdateStory({ storyPoints })}
+            story={story}
+            sprints={sprints}
+            onSave={onUpdateStory}
+            onMoveToSprint={onMoveToSprint}
           />
         </section>
 
@@ -131,6 +165,29 @@ export function StoryDetailModal({
           ) : null}
           <CommitList commits={story.commits} />
         </section>
+
+        <section className={styles.danger}>
+          <div>
+            <h3 className={styles.sectionTitle}>Delete story</h3>
+            <p className={styles.dangerHint}>
+              Removes the story. Its commits stay in the repository.
+            </p>
+          </div>
+          <Button
+            variant="danger"
+            disabled={isDeleting}
+            onClick={() => {
+              void handleDelete();
+            }}
+          >
+            {isDeleting ? "Deleting…" : "Delete story"}
+          </Button>
+        </section>
+        {deleteError ? (
+          <p className={styles.syncMessage} role="alert">
+            {deleteError}
+          </p>
+        ) : null}
       </div>
     </Modal>
   );

@@ -2,19 +2,23 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   assignStoryBranch,
   createStory,
+  deleteStory as deleteStoryRequest,
   getStories,
+  moveStoryToSprint as moveStoryToSprintRequest,
   updateStory as updateStoryRequest,
   type CreateStoryInput,
   type UpdateStoryInput,
 } from "../../../api/stories";
+import { getSprints } from "../../../api/sprints";
 import { syncStoryCommits, syncAllCommits } from "../../../api/github";
 import { compareStoriesByPriorityThenAge } from "../../../domain/story";
-import type { Story, StoryPriority } from "../../../domain/types";
+import type { Sprint, Story, StoryPriority } from "../../../domain/types";
 
 export type PriorityFilter = StoryPriority | "all";
 
 interface UseBacklogResult {
   stories: Story[];
+  sprints: Sprint[];
   loading: boolean;
   error: string | null;
   priorityFilter: PriorityFilter;
@@ -22,12 +26,15 @@ interface UseBacklogResult {
   assignBranch: (storyId: string, branch: string) => Promise<void>;
   addStory: (input: CreateStoryInput) => Promise<void>;
   updateStory: (storyId: string, input: UpdateStoryInput) => Promise<void>;
+  moveToSprint: (storyId: string, sprintId: string | null) => Promise<void>;
+  removeStory: (storyId: string) => Promise<void>;
   syncCommits: (storyId: string) => Promise<void>;
   reload: () => void;
 }
 
 export function useBacklog(projectId: string | null): UseBacklogResult {
   const [allStories, setAllStories] = useState<Story[]>([]);
+  const [sprints, setSprints] = useState<Sprint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
@@ -41,9 +48,13 @@ export function useBacklog(projectId: string | null): UseBacklogResult {
       setError(null);
 
       try {
-        const stories = await getStories();
+        const [stories, loadedSprints] = await Promise.all([
+          getStories(),
+          getSprints(),
+        ]);
         if (!cancelled) {
           setAllStories(stories);
+          setSprints(loadedSprints);
         }
       } catch {
         if (!cancelled) {
@@ -128,6 +139,23 @@ export function useBacklog(projectId: string | null): UseBacklogResult {
     [],
   );
 
+  const moveToSprint = useCallback(
+    async (storyId: string, sprintId: string | null) => {
+      const updated = await moveStoryToSprintRequest(storyId, sprintId);
+      setAllStories((current) =>
+        current.map((story) => (story.id === storyId ? updated : story)),
+      );
+    },
+    [],
+  );
+
+  const removeStory = useCallback(async (storyId: string) => {
+    await deleteStoryRequest(storyId);
+    setAllStories((current) =>
+      current.filter((story) => story.id !== storyId),
+    );
+  }, []);
+
   const syncCommits = useCallback(
     async (storyId: string) => {
       await syncStoryCommits(storyId);
@@ -138,6 +166,7 @@ export function useBacklog(projectId: string | null): UseBacklogResult {
 
   return {
     stories,
+    sprints,
     loading,
     error,
     priorityFilter,
@@ -145,6 +174,8 @@ export function useBacklog(projectId: string | null): UseBacklogResult {
     assignBranch,
     addStory,
     updateStory,
+    moveToSprint,
+    removeStory,
     syncCommits,
     reload,
   };

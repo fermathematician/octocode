@@ -4,13 +4,17 @@ import { EmptyState } from "../../components/shared/EmptyState/EmptyState";
 import { ErrorState } from "../../components/shared/ErrorState/ErrorState";
 import { Spinner } from "../../components/shared/Spinner/Spinner";
 import { CreateSprintModal } from "../../components/sprints/CreateSprintModal";
+import { EditSprintModal } from "../../components/sprints/EditSprintModal";
+import type { Sprint } from "../../domain/types";
 import { useSprints } from "./hooks/useSprints";
 import { SprintCard } from "./components/SprintCard";
 import styles from "./index.module.css";
 
 export function SprintsPage() {
-  const { entries, loading, error, deleteSprint, reload } = useSprints();
+  const { entries, loading, error, deleteSprint, editSprint, reload } =
+    useSprints();
   const [isCreating, setIsCreating] = useState(false);
+  const [editingSprint, setEditingSprint] = useState<Sprint | null>(null);
 
   function handleDelete(sprintId: string, name: string) {
     const confirmed = window.confirm(
@@ -55,6 +59,7 @@ export function SprintsPage() {
             <li key={entry.sprint.id}>
               <SprintCard
                 entry={entry}
+                onEdit={() => setEditingSprint(entry.sprint)}
                 onDelete={() => handleDelete(entry.sprint.id, entry.sprint.name)}
               />
             </li>
@@ -69,6 +74,17 @@ export function SprintsPage() {
             setIsCreating(false);
             reload();
           }}
+        />
+      ) : null}
+
+      {editingSprint ? (
+        <EditSprintModal
+          sprint={editingSprint}
+          onSave={async (sprintId, values) => {
+            await editSprint(sprintId, values);
+            setEditingSprint(null);
+          }}
+          onClose={() => setEditingSprint(null)}
         />
       ) : null}
     </section>

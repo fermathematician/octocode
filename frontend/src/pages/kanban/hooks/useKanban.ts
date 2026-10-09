@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getProjects } from "../../../api/projects";
 import { getSprints } from "../../../api/sprints";
 import {
+  deleteStory as deleteStoryRequest,
   getStories,
+  moveStoryToSprint as moveStoryToSprintRequest,
   updateStory as updateStoryRequest,
   updateStoryStatus,
   type UpdateStoryInput,
@@ -21,6 +23,7 @@ export interface KanbanColumnData {
 interface UseKanbanResult {
   columns: KanbanColumnData[];
   projects: Project[];
+  sprints: Sprint[];
   activeSprint: Sprint | null;
   projectFilter: string | null;
   setProjectFilter: (projectId: string | null) => void;
@@ -30,6 +33,8 @@ interface UseKanbanResult {
   error: string | null;
   moveStory: (storyId: string, status: StoryStatus) => Promise<void>;
   updateStory: (storyId: string, input: UpdateStoryInput) => Promise<void>;
+  moveToSprint: (storyId: string, sprintId: string | null) => Promise<void>;
+  removeStory: (storyId: string) => Promise<void>;
   syncCommits: (storyId: string) => Promise<void>;
   reload: () => void;
 }
@@ -169,9 +174,27 @@ export function useKanban(): UseKanbanResult {
     [],
   );
 
+  const moveToSprint = useCallback(
+    async (storyId: string, sprintId: string | null) => {
+      const updated = await moveStoryToSprintRequest(storyId, sprintId);
+      setStories((current) =>
+        current.map((story) => (story.id === storyId ? updated : story)),
+      );
+    },
+    [],
+  );
+
+  const removeStory = useCallback(async (storyId: string) => {
+    await deleteStoryRequest(storyId);
+    setStories((current) =>
+      current.filter((story) => story.id !== storyId),
+    );
+  }, []);
+
   return {
     columns,
     projects,
+    sprints,
     activeSprint,
     projectFilter,
     setProjectFilter,
@@ -181,6 +204,8 @@ export function useKanban(): UseKanbanResult {
     error,
     moveStory,
     updateStory,
+    moveToSprint,
+    removeStory,
     syncCommits,
     reload,
   };

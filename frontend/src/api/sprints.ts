@@ -7,6 +7,12 @@ export interface CreateSprintInput {
   endDate: string;
 }
 
+export interface UpdateSprintInput {
+  name?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
 export async function getSprints(): Promise<Sprint[]> {
   const page = await apiFetch<Paginated<Sprint>>("/sprints");
   return page.items;
@@ -15,6 +21,16 @@ export async function getSprints(): Promise<Sprint[]> {
 export function createSprint(input: CreateSprintInput): Promise<Sprint> {
   return apiFetch<Sprint>("/sprints", {
     method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateSprint(
+  sprintId: string,
+  input: UpdateSprintInput,
+): Promise<Sprint> {
+  return apiFetch<Sprint>(`/sprints/${sprintId}`, {
+    method: "PATCH",
     body: JSON.stringify(input),
   });
 }

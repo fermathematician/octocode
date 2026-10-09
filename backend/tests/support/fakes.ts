@@ -444,6 +444,19 @@ export class InMemoryStoryRepository implements StoryRepository {
       .map((story) => story.branch);
   }
 
+  async delete(id: string, ownerId: string): Promise<boolean> {
+    const story = this.store.stories.find((candidate) => candidate.id === id);
+
+    if (!story || !this.ownsProject(story.projectId, ownerId)) {
+      return false;
+    }
+
+    this.store.stories = this.store.stories.filter(
+      (candidate) => candidate.id !== id,
+    );
+    return true;
+  }
+
   async findIdsByProject(projectId: string): Promise<string[]> {
     return this.store.stories
       .filter((story) => story.projectId === projectId)

@@ -67,6 +67,20 @@ export function App() {
     selectProject(project.id);
   }
 
+  function handleProjectUpdated(project: Project) {
+    setProjects((current) =>
+      current.map((item) => (item.id === project.id ? project : item)),
+    );
+  }
+
+  function handleProjectDeleted(projectId: string) {
+    setProjects((current) =>
+      current.filter((item) => item.id !== projectId),
+    );
+    setActiveProjectId(null);
+    setScreen("project");
+  }
+
   if (userLoading) {
     return (
       <div className={styles.loading}>
@@ -108,6 +122,8 @@ export function App() {
             projects={projects}
             onSelectProject={selectProject}
             onProjectCreated={handleProjectCreated}
+            onProjectUpdated={handleProjectUpdated}
+            onProjectDeleted={handleProjectDeleted}
           />
         );
     }

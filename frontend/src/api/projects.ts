@@ -23,3 +23,22 @@ export function createProjectFromRepository(
     body: JSON.stringify(input),
   });
 }
+
+export interface UpdateProjectInput {
+  name?: string;
+  color?: string;
+}
+
+export function updateProject(
+  projectId: string,
+  input: UpdateProjectInput,
+): Promise<Project> {
+  return apiFetch<Project>(`/projects/${projectId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteProject(projectId: string): Promise<void> {
+  return apiFetch<void>(`/projects/${projectId}`, { method: "DELETE" });
+}

@@ -3,6 +3,8 @@ import { getProjects } from "../../../api/projects";
 import {
   deleteSprint as deleteSprintRequest,
   getSprints,
+  updateSprint as updateSprintRequest,
+  type UpdateSprintInput,
 } from "../../../api/sprints";
 import { getStories } from "../../../api/stories";
 import type { Project, Sprint, Story } from "../../../domain/types";
@@ -26,6 +28,7 @@ interface UseSprintsResult {
   loading: boolean;
   error: string | null;
   deleteSprint: (sprintId: string) => Promise<void>;
+  editSprint: (sprintId: string, input: UpdateSprintInput) => Promise<void>;
   reload: () => void;
 }
 
@@ -145,11 +148,20 @@ export function useSprints(): UseSprintsResult {
     [reload],
   );
 
+  const editSprint = useCallback(
+    async (sprintId: string, input: UpdateSprintInput) => {
+      await updateSprintRequest(sprintId, input);
+      reload();
+    },
+    [reload],
+  );
+
   return {
     entries,
     loading,
     error,
     deleteSprint,
+    editSprint,
     reload,
   };
 }

@@ -400,21 +400,23 @@ frontend/src/
   have a **done** checkbox and **Edit** / **Delete** actions.
 - **Sprints** (`pages/sprints`): every sprint across projects with status
   (upcoming/active/past), points/story progress, a project filter, and **Generate sprint** /
-  **Delete** actions.
+  **Edit** / **Delete** actions.
 - **Calendar** (`pages/calendar`): month grid, day panel, add event. Tasks in the day panel can be
   ticked done, edited, and deleted.
 - **Debug** (`pages/debug`): shows exactly what the app fetches from GitHub for each linked
   project — the branch list and the newest 100 commits of the default branch, with dates (and any
   fetch error).
 - **Kanban** (`pages/kanban`): 5 status columns, drag-and-drop, and a project filter. Click a card
-  to open a modal with its branch, commit count, the full commit list (with dates), a **Sync
-  commits** button, and an editor for the story points.
+  to open a modal with its branch, commit count, the full commit list (with dates), an editor for
+  the story fields (title, points, priority, sprint), a **Sync commits** button, and a **Delete**
+  action.
 - **Graph** (`pages/graph`): burndown chart + sprint header, project filter.
 - **Project** (`pages/project`): tabs `Backlog` (story CRUD/branch/commits) and `Progress`
-  (sprint history). When "All projects" is selected, an **Add project** button opens a modal that
-  lists your GitHub repositories with a search box. Clicking a story card opens a detail modal with
-  the branch picker, the commit list (with dates), a **Sync commits** button, and an editor for the
-  story points.
+  (sprint history). When a project is selected, the header has **Edit project** (name/color) and
+  **Delete project** actions; when "All projects" is selected, an **Add project** button opens a
+  modal that lists your GitHub repositories with a search box. Clicking a story card opens a detail
+  modal with the branch picker, the commit list (with dates), an editor for the story fields, a
+  **Sync commits** button, and a **Delete** action.
 
 ### 5.6 Data flow
 
@@ -460,7 +462,8 @@ styles live in colocated `*.module.css`; no inline styles except dynamic values.
 
 - Requires the backend + a signed-in GitHub user; there is no offline/local-data mode anymore.
 - Kanban/graph project filters are independent local state.
-- No sprint management UI (create/close/assign) — sprints are created via the API only.
+- Sprints can be created, edited (name/dates) and deleted; there is still no UI to close a sprint or
+  bulk-assign stories to it.
 - Drag-and-drop is pointer-only; there is no keyboard-only way to change a story's status.
 - Commit sync is triggered by the API; the UI has no "sync commits" button yet (commits appear once
   synced).
@@ -614,6 +617,7 @@ All routes except `/health` and the two OAuth endpoints require a valid session 
 | PATCH | `/stories/:storyId/status` | required | Change stage `{ status }`; sets/clears `completedAt` |
 | PATCH | `/stories/:storyId/branch` | required | Rename/assign `{ branch }` |
 | PATCH | `/stories/:storyId/sprint` | required | Move to sprint `{ sprintId }` (`null` clears the sprint) |
+| DELETE | `/stories/:storyId` | required | Delete a story (its `Commit` rows keep `storyId` null) → 204 |
 | GET | `/calendar-events?date=&limit=&cursor=` | required | List the actor's calendar events (paginated) |
 | POST | `/calendar-events` | required | Create `{ type, title, date, startTime }` |
 | PATCH | `/calendar-events/:eventId` | required | Update `{ type?, title?, date?, startTime?, notes?, completed? }` |
@@ -1009,8 +1013,8 @@ The detailed gap analysis and phased plan live in **§14**. What remains:
 2. **Database seed script** — the initial migration is committed; a seed script is still missing.
 3. **Tests** — backend integration tests (supertest + test DB) and frontend tests (Vitest + RTL).
    Both require approval (new dependencies).
-4. **Sprint management UI** — the API now supports sprint update/delete and moving stories between
-   sprints (Phase 1); the UI still lacks those controls.
+4. **Sprint management UI** — create, edit (name/dates) and delete are implemented; closing a sprint
+   and bulk-assigning stories to it from the UI are still missing.
 5. **Google Calendar sync** — two-way sync is implemented (link, pull/push, sync token, delete
    propagation, background sync). Remaining: per-user time zones, Google push notifications, and
    all-day events.
@@ -1123,6 +1127,10 @@ The detailed gap analysis and phased plan live in **§14**. What remains:
   `[repositoryId, branch, sha]` (migration `20261003000000_commit_per_branch`), and
   `SyncStoryCommitsService` uses the compare API to keep just the commits that are not on the default
   branch. The old merge-aware default-branch fallback was removed.
+- **Story/sprint/project edit & delete**: `DELETE /stories/:storyId` (commits keep, `storyId` set
+  null); the backlog and kanban story modals now edit title/points/priority/sprint and delete;
+  sprints can be edited (name/dates) besides deleted; projects can be renamed/recolored and deleted
+  from the project header.
 
 ---
 
@@ -1294,6 +1302,7 @@ phased plan. **Phases 1–3 are implemented** (see §11); Phases 4–5 are outst
 | Gap | Status |
 | --- | --- |
 | Story editing (`title`/`storyPoints`/`priority`) | ✅ Phase 1 — `PATCH /stories/:storyId` |
+| Story delete | ✅ `DELETE /stories/:storyId` (commits kept, `storyId` set null) |
 | Story → sprint assignment | ✅ Phase 1 — `PATCH /stories/:storyId/sprint` |
 | Sprint update/delete | ✅ Phase 1 — `PATCH`/`DELETE /sprints/:sprintId` |
 | Project update/delete | ✅ Phase 1 — `PATCH`/`DELETE /projects/:projectId` |

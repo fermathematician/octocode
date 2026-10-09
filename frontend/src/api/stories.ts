@@ -61,3 +61,17 @@ export function updateStoryStatus(
     body: JSON.stringify({ status }),
   });
 }
+
+export function moveStoryToSprint(
+  storyId: string,
+  sprintId: string | null,
+): Promise<Story> {
+  return apiFetch<Story>(`/stories/${storyId}/sprint`, {
+    method: "PATCH",
+    body: JSON.stringify({ sprintId }),
+  });
+}
+
+export function deleteStory(storyId: string): Promise<void> {
+  return apiFetch<void>(`/stories/${storyId}`, { method: "DELETE" });
+}

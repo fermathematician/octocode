@@ -15,6 +15,7 @@ export function KanbanPage() {
   const {
     columns,
     projects,
+    sprints,
     activeSprint,
     projectFilter,
     setProjectFilter,
@@ -24,6 +25,8 @@ export function KanbanPage() {
     error,
     moveStory,
     updateStory,
+    moveToSprint,
+    removeStory,
     syncCommits,
     reload,
   } = useKanban();
@@ -107,9 +110,17 @@ export function KanbanPage() {
         <StoryCommitsModal
           story={selectedStory}
           projectName={projectNames[selectedStory.projectId]}
+          sprints={sprints}
           onClose={() => setSelectedStoryId(null)}
           onSyncCommits={() => syncCommits(selectedStory.id)}
           onUpdateStory={(input) => updateStory(selectedStory.id, input)}
+          onMoveToSprint={(sprintId) =>
+            moveToSprint(selectedStory.id, sprintId)
+          }
+          onDelete={async () => {
+            await removeStory(selectedStory.id);
+            setSelectedStoryId(null);
+          }}
         />
       ) : null}
     </section>

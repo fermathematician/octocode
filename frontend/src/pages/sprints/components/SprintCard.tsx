@@ -5,6 +5,7 @@ import styles from "./SprintCard.module.css";
 
 interface SprintCardProps {
   entry: SprintOverview;
+  onEdit: () => void;
   onDelete: () => void;
 }
 
@@ -14,7 +15,7 @@ const STATUS_LABELS = {
   past: "Past",
 } as const;
 
-export function SprintCard({ entry, onDelete }: SprintCardProps) {
+export function SprintCard({ entry, onEdit, onDelete }: SprintCardProps) {
   const percent = Math.round(entry.progress * 100);
 
   return (
@@ -69,7 +70,10 @@ export function SprintCard({ entry, onDelete }: SprintCardProps) {
       </dl>
 
       <div className={styles.actions}>
-        <Button variant="ghost" onClick={onDelete}>
+        <Button variant="ghost" onClick={onEdit}>
+          Edit
+        </Button>
+        <Button variant="danger" onClick={onDelete}>
           Delete
         </Button>
       </div>
